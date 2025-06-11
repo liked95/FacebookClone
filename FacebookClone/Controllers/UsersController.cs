@@ -139,5 +139,11 @@ namespace FacebookClone.Controllers
                 return StatusCode(500, "An error occurred while processing your request");
             }
         }
+
+        //[HttpGet("{id:guid}/posts")]
+        //[ProducesResponseType(typeof(IEnumerable<PostResponseDto>), StatusCodes.Status200OK)]
+        //[ProducesResponseType(StatusCodes.Status404NotFound)]
+
+
     }
 }

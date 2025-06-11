@@ -57,6 +57,12 @@ namespace FacebookClone.Services.Implementations
             return user == null ? null : MapToUserResponseDto(user);
         }
 
+        public async Task<UserResponseDto?> GetUserByEmailAsync(string email)
+        {
+            var user = await _userRepository.GetByEmailAsync(email);
+            return user == null ? null : MapToUserResponseDto(user);
+        }
+
         public async Task<UserResponseDto?> UpdateUserAsync(Guid id, UpdateUserDTOs updateUserDto)
         {
             var existingUser = await _userRepository.GetByIdAsync(id);
@@ -85,7 +91,7 @@ namespace FacebookClone.Services.Implementations
         }
 
         // Helper methods
-        private static UserResponseDto MapToUserResponseDto(User user)
+        public static UserResponseDto MapToUserResponseDto(User user)
         {
             return new UserResponseDto
             {

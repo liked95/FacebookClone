@@ -18,6 +18,9 @@ namespace FacebookClone.Models.DomainModels
         [MaxLength(100)]
         public string Email { get; set; }
 
+        [Required]
+        public string PasswordHash { get; set; } = string.Empty;
+
         [Url]
         public string? AvatarUrl { get; set; }
 

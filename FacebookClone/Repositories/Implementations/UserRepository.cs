@@ -24,6 +24,11 @@ namespace FacebookClone.Repositories.Implementations
             return await context.Users.FirstOrDefaultAsync(x => x.Username == username);
         }
 
+        public async Task<User?> GetByEmailAsync(string email)
+        {
+            return await context.Users.FirstOrDefaultAsync(x => x.Email == email);
+        }
+
         public async Task<User?> CreateUserAsync(User user)
         {
             try
