@@ -9,20 +9,20 @@ using System.Security.Claims;
 namespace FacebookClone.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("Api/[controller]")]
     [Produces("application/json")]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
-        private readonly ILogger<AuthService> _logger;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IAuthService authService, ILogger<AuthService> logger)
+        public AuthController(IAuthService authService, ILogger<AuthController> logger)
         {
             _authService = authService;
             _logger = logger;
         }
 
-        [HttpPost("register")]
+        [HttpPost("Register")]
         [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -41,7 +41,7 @@ namespace FacebookClone.Controllers
                     return Conflict("Either username or email exists"!);
                 }
 
-                return CreatedAtAction("CreateUser", null, result);
+                return CreatedAtAction(nameof(GetCurrentUser), null, result);
             }
             catch (Exception ex)
             {
@@ -51,7 +51,7 @@ namespace FacebookClone.Controllers
         }
 
 
-        [HttpPost("login")]
+        [HttpPost("Login")]
         [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -75,12 +75,12 @@ namespace FacebookClone.Controllers
             }
         }
 
-        [HttpGet("me")]
+        [HttpGet("Me")]
         [Authorize]
         [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<UserResponseDto>> GetCurrentUser()
-        {
+        { 
             try
             {
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
