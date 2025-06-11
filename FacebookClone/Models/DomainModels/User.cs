@@ -23,5 +23,9 @@ namespace FacebookClone.Models.DomainModels
 
         public string Role { get; set; } = RoleTypes.User;
         public DateTime CreatedAt{ get; set; } = DateTime.UtcNow;
+
+        // Navigations
+        public virtual ICollection<Post> Posts { get; set; } = new List<Post>();
+        public virtual ICollection<Comment> Comments { get; set; } = new List<Comment>();
     }
 }
