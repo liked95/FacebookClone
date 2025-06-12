@@ -56,6 +56,11 @@ namespace FacebookClone.Controllers
         public async Task<ActionResult<IEnumerable<PostResponseDto>>> GetUserPosts(Guid userId, [FromQuery] int pageNumber = 1, int pageSize = 25)
         {
             var currentUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            _logger.LogInformation($"Current user id is {currentUserId}");
+            _logger.LogInformation("userId.ToString() = {UserId}", userId.ToString());
+
+
+
             if (currentUserId != userId.ToString())
             {
                 return Forbid("You can query your posts only");
