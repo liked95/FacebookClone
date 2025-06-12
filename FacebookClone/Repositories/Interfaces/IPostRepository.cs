@@ -9,5 +9,6 @@ namespace FacebookClone.Repositories.Interfaces
         Task<Post?> CreatePostAsync(Post post);
         Task<Post?> UpdatePostAsync(Post post);
         Task<bool> DeletePostAsync(Guid id);
+        Task<bool> IsPostOwnerAsync(Guid postId, Guid userId);
     }
 }

@@ -9,9 +9,6 @@ namespace FacebookClone.Models.DTOs
         [StringLength(5000, MinimumLength = 3)]
         public string Content { get; set; } = string.Empty;
 
-        [Required]
-        public Guid UserId { get; set; }
-
         public PrivacyType Privacy { get; set; } = PrivacyType.Public;
 
         [Url]

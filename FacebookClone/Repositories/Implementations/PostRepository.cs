@@ -14,19 +14,64 @@ namespace FacebookClone.Repositories.Implementations
             _context = context;
         }
         
-        public Task<Post?> CreatePostAsync(Post post)
+        public async Task<Post?> CreatePostAsync(Post post)
         {
-            throw new NotImplementedException();
+            try
+            {
+                _context.Posts.Add(post);
+                await _context.SaveChangesAsync();
+                return await GetByIdAsync(post.Id);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
-        public Task<bool> DeletePostAsync(Guid id)
+        public async Task<Post?> UpdatePostAsync(Post post)
         {
-            throw new NotImplementedException();
+            try
+            {
+                post.IsEdited = true;
+                _context.Posts.Update(post);
+                await _context.SaveChangesAsync();
+                return await GetByIdAsync(post.Id); 
+            } catch
+            {
+                return null;
+            }
         }
 
-        public Task<IEnumerable<Post>> GetAllPostsByUserIdAsync(Guid userId, int pageNumber, int pageSize)
+        public async Task<bool> DeletePostAsync(Guid id)
         {
-            throw new NotImplementedException();
+            try
+            {
+                var post = await GetByIdAsync(id);
+                if (post == null)
+                {
+                    return false;
+                }
+
+                _context.Posts.Remove(post);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<IEnumerable<Post>> GetAllPostsByUserIdAsync(Guid userId, int pageNumber, int pageSize)
+        {
+            return await _context.Posts
+                .AsNoTracking()
+                .Include(p => p.User)
+                .Where(p => p.UserId == userId)
+                .OrderByDescending(p=>p.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
         }
 
         public  async Task<Post?> GetByIdAsync(Guid id)
@@ -35,9 +80,11 @@ namespace FacebookClone.Repositories.Implementations
             return post;
         }
 
-        public Task<Post?> UpdatePostAsync(Post post)
+        public async Task<bool> IsPostOwnerAsync(Guid postId, Guid userId)
         {
-            throw new NotImplementedException();
+            return await _context.Posts.AnyAsync(p => p.Id == postId && p.UserId == userId);
         }
+
+       
     }
 }
