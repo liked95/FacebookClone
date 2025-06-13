@@ -130,7 +130,7 @@ namespace FacebookClone.Controllers
                 }
 
                 var currentUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (!string.IsNullOrEmpty(currentUserId))
+                if (string.IsNullOrEmpty(currentUserId))
                 {
                     return Unauthorized();
                 }
@@ -143,7 +143,7 @@ namespace FacebookClone.Controllers
 
                 if (!await _commentService.IsCommentOwnerAsync(commentId, Guid.Parse(currentUserId)))
                 {
-                    return Forbid("You can only update your own comments");
+                    return StatusCode(StatusCodes.Status403Forbidden, "You can only update your own comments");
                 }
 
                 var updatedComment = await _commentService.UpdateCommentAsync(commentId, updateCommentDto);

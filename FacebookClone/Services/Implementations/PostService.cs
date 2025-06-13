@@ -1,24 +1,33 @@
 ﻿using FacebookClone.Models.DomainModels;
 using FacebookClone.Models.DTOs;
+using FacebookClone.Repositories.Implementations;
 using FacebookClone.Repositories.Interfaces;
 using FacebookClone.Services.Interfaces;
+using System.Threading.Tasks;
 
 namespace FacebookClone.Services.Implementations
 {
     public class PostService : IPostService
     {
         private readonly IPostRepository _postRepository;
+        private readonly ICommentRepository _commentRepository;
         private readonly ILogger<PostService> _logger;
 
-        public PostService(IPostRepository postRepository, ILogger<PostService> logger)
+        public PostService(IPostRepository postRepository, ICommentRepository commentRepository, ILogger<PostService> logger)
         {
             _postRepository = postRepository;
+            _commentRepository = commentRepository;
             _logger = logger;
         }
         public async Task<IEnumerable<PostResponseDto>> GetPostsByUserIdAsync(Guid userId, int pageNumber, int pageSize)
         {
             var posts = await _postRepository.GetAllPostsByUserIdAsync(userId, pageNumber, pageSize);
-            return posts.Select(MapToPostResponseDto);
+            var result = new List<PostResponseDto>();
+            foreach( var post in posts)
+            {
+                result.Add(await MapToPostResponseDto(post));
+            }
+            return result;
         }
 
 
@@ -44,7 +53,7 @@ namespace FacebookClone.Services.Implementations
                 return null;
             }
 
-            return MapToPostResponseDto(createdPost);
+            return await MapToPostResponseDto(createdPost);
         }
 
         public async Task<PostResponseDto?> UpdatePostAsync(Guid id, UpdatePostDto updatePostDto)
@@ -77,7 +86,7 @@ namespace FacebookClone.Services.Implementations
             }
 
             _logger.LogInformation("Post updated successfully with ID: {PostId}", updatedPost.Id);
-            return MapToPostResponseDto(updatedPost);
+            return await MapToPostResponseDto(updatedPost);
         }
 
         public async Task<bool> DeletePostAsync(Guid id)
@@ -96,8 +105,9 @@ namespace FacebookClone.Services.Implementations
             return await _postRepository.IsPostOwnerAsync(postId, userId);
         }
 
-        private static PostResponseDto MapToPostResponseDto(Post post)
+        private async Task<PostResponseDto> MapToPostResponseDto(Post post)
         {
+            var commentsCount = await _commentRepository.GetPostCommentsCountAsync(post.Id);
             return new PostResponseDto
             {
                 Id = post.Id,
@@ -110,7 +120,8 @@ namespace FacebookClone.Services.Implementations
                 IsEdited = post.IsEdited,
                 ImageUrl = post.ImageUrl,
                 VideoUrl = post.VideoUrl,
-                FileUrl = post.FileUrl
+                FileUrl = post.FileUrl,
+                CommentsCount = commentsCount
             };
         }
 
