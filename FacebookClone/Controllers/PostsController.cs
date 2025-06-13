@@ -12,11 +12,16 @@ namespace FacebookClone.Controllers
     public class PostsController : ControllerBase
     {
         private readonly IPostService _postService;
+        private readonly ICommentService _commentService;
         private readonly ILogger<PostsController> _logger;
 
-        public PostsController(IPostService postService, ILogger<PostsController> logger)
+        public PostsController(
+            IPostService postService,
+            ICommentService commentService,
+            ILogger<PostsController> logger)
         {
             _postService = postService;
+            _commentService = commentService;
             _logger = logger;
         }
 
@@ -43,7 +48,7 @@ namespace FacebookClone.Controllers
                 }
 
                 var userId = Guid.Parse(currentUserId);
-                var post = await _postService.CreatePostAsync(createPostDto, userId);
+                var post = await _postService.CreatePostAsync(userId, createPostDto);
                 if (post == null)
                 {
                     return BadRequest("Failed to create post!");
@@ -51,7 +56,8 @@ namespace FacebookClone.Controllers
 
                 return StatusCode(201, post);
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 _logger.LogError(ex, "Error occurred while creating post");
                 return StatusCode(500, "An error occurred while processing your request");
             }
@@ -87,7 +93,7 @@ namespace FacebookClone.Controllers
 
 
                 var updatedPost = await _postService.UpdatePostAsync(postId, updatePostDto);
-                
+
                 if (updatedPost == null)
                 {
                     return NotFound("Failed to update post!");

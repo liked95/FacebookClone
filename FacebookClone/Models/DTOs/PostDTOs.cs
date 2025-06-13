@@ -51,7 +51,9 @@ namespace FacebookClone.Models.DTOs
         public string? ImageUrl { get; set; }
         public string? VideoUrl { get; set; }
         public string? FileUrl { get; set; }
-        public int CommentsCount { get; set; }
+
+        [Required]
+        public int CommentsCount { get; set; } = 0;
     }
 
     public class PostListDto

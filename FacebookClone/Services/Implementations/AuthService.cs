@@ -48,7 +48,7 @@ namespace FacebookClone.Services.Implementations
             var userDto = UserService.MapToUserResponseDto(user);
             var token = GenerateJwtToken(userDto);
             var expires = DateTime.UtcNow.AddMinutes(GetTokenExpirationMinutes());
-            _logger.LogInformation("User registered successfully: {UserId}", user.Id);
+            _logger.LogInformation("User login successfully: {UserId}", user.Id);
 
             return new AuthResponseDto
             {

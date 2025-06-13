@@ -84,7 +84,5 @@ namespace FacebookClone.Repositories.Implementations
         {
             return await _context.Posts.AnyAsync(p => p.Id == postId && p.UserId == userId);
         }
-
-       
     }
 }

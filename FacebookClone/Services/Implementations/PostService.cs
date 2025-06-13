@@ -23,7 +23,7 @@ namespace FacebookClone.Services.Implementations
 
 
 
-        public async Task<PostResponseDto?> CreatePostAsync(CreatePostDto createPostDto, Guid userId)
+        public async Task<PostResponseDto?> CreatePostAsync(Guid userId, CreatePostDto createPostDto)
         {
             var post = new Post
             {
