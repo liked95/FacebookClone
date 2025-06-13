@@ -1,5 +1,5 @@
-﻿using FacebookClone.Models.DTOs;
-using FacebookClone.Services.Implementations;
+﻿using FacebookClone.Common;
+using FacebookClone.Models.DTOs;
 using FacebookClone.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -23,82 +23,92 @@ namespace FacebookClone.Controllers
         }
 
         [HttpPost("Register")]
-        [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status409Conflict)]
-        public async Task<ActionResult<AuthResponseDto>> Register([FromBody] RegisterDto registerDto)
+        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status409Conflict)]
+        public async Task<ActionResult<ApiResponse<AuthResponseDto>>> Register([FromBody] RegisterDto registerDto)
         {
             try
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    var errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList();
+
+                    return BadRequest(ApiResponse<AuthResponseDto>.ErrorResponse("Invalid input", 400, errors));
                 }
 
                 var result = await _authService.RegisterAsync(registerDto);
                 if (result == null)
                 {
-                    return Conflict("Either username or email exists"!);
+                    return Conflict(ApiResponse<AuthResponseDto>.ErrorResponse("Username or email already exists", 409));
                 }
 
-                return CreatedAtAction(nameof(GetCurrentUser), null, result);
+                return CreatedAtAction(nameof(GetCurrentUser), null, ApiResponse<AuthResponseDto>.SuccessResponse(result, "Registration successful", 201));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred during user registration");
-                return StatusCode(500, "An error occurred while processing your request");
+                return StatusCode(500, ApiResponse<AuthResponseDto>.ErrorResponse("Internal server error", 500));
             }
         }
 
-
         [HttpPost("Login")]
-        [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginDto loginDto)
+        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<ApiResponse<AuthResponseDto>>> Login([FromBody] LoginDto loginDto)
         {
             try
             {
                 if (!ModelState.IsValid)
-                    return BadRequest(ModelState);
+                {
+                    var errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList();
+
+                    return BadRequest(ApiResponse<AuthResponseDto>.ErrorResponse("Invalid input", 400, errors));
+                }
 
                 var result = await _authService.LoginAsync(loginDto);
                 if (result == null)
-                    return Unauthorized("Invalid email or password");
+                    return Unauthorized(ApiResponse<AuthResponseDto>.ErrorResponse("Invalid email or password", 401));
 
-                return Ok(result);
+                return Ok(ApiResponse<AuthResponseDto>.SuccessResponse(result, "Login successful"));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred during user login");
-                return StatusCode(500, "An error occurred while processing your request");
+                return StatusCode(500, ApiResponse<AuthResponseDto>.ErrorResponse("Internal server error", 500));
             }
         }
 
         [HttpGet("Me")]
         [Authorize]
-        [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<UserResponseDto>> GetCurrentUser()
-        { 
+        [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<ApiResponse<UserResponseDto>>> GetCurrentUser()
+        {
             try
             {
                 var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userId))
-                    return Unauthorized();
+                    return Unauthorized(ApiResponse<UserResponseDto>.ErrorResponse("Unauthorized access", 401));
 
                 var user = await _authService.GetCurrentUserAsync(Guid.Parse(userId));
                 if (user == null)
-                    return Unauthorized();
+                    return Unauthorized(ApiResponse<UserResponseDto>.ErrorResponse("User not found", 401));
 
-                return Ok(user);
+                return Ok(ApiResponse<UserResponseDto>.SuccessResponse(user, "User fetched"));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while getting current user");
-                return StatusCode(500, "An error occurred while processing your request");
+                return StatusCode(500, ApiResponse<UserResponseDto>.ErrorResponse("Internal server error", 500));
             }
         }
-
     }
 }

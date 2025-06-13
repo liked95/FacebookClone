@@ -1,4 +1,5 @@
-﻿using FacebookClone.Models.DTOs;
+﻿using FacebookClone.Common;
+using FacebookClone.Models.DTOs;
 using FacebookClone.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -30,36 +31,37 @@ namespace FacebookClone.Controllers
         /// </summary>
         [HttpPost]
         [Authorize]
-        [ProducesResponseType(typeof(PostResponseDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<PostResponseDto>> CreatePost([FromBody] CreatePostDto createPostDto)
+        [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<ApiResponse<PostResponseDto>>> CreatePost([FromBody] CreatePostDto createPostDto)
         {
             try
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                    return BadRequest(ApiResponse<PostResponseDto>.ErrorResponse("Validation failed", 400, errors));
                 }
 
                 var currentUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(currentUserId))
                 {
-                    return Unauthorized();
+                    return Unauthorized(ApiResponse<PostResponseDto>.ErrorResponse("Unauthorized", 401));
                 }
 
                 var userId = Guid.Parse(currentUserId);
                 var post = await _postService.CreatePostAsync(userId, createPostDto);
                 if (post == null)
                 {
-                    return BadRequest("Failed to create post!");
+                    return BadRequest(ApiResponse<PostResponseDto>.ErrorResponse("Failed to create post"));
                 }
 
-                return StatusCode(201, post);
+                return StatusCode(201, ApiResponse<PostResponseDto>.SuccessResponse(post, "Post created", 201));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while creating post");
-                return StatusCode(500, "An error occurred while processing your request");
+                return StatusCode(500, ApiResponse<PostResponseDto>.ErrorResponse("Internal server error", 500));
             }
         }
 
@@ -68,43 +70,42 @@ namespace FacebookClone.Controllers
         /// </summary>
         [HttpPut("{postId}")]
         [Authorize]
-        [ProducesResponseType(typeof(PostResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<PostResponseDto>> UpdatePost(Guid postId, [FromBody] UpdatePostDto updatePostDto)
+        [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<ApiResponse<PostResponseDto>>> UpdatePost(Guid postId, [FromBody] UpdatePostDto updatePostDto)
         {
             try
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
+                    return BadRequest(ApiResponse<PostResponseDto>.ErrorResponse("Validation failed", 400, errors));
                 }
 
                 var currentUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(currentUserId))
                 {
-                    return Unauthorized();
+                    return Unauthorized(ApiResponse<PostResponseDto>.ErrorResponse("Unauthorized", 401));
                 }
 
                 var userId = Guid.Parse(currentUserId);
                 if (!await _postService.IsPostOwnerAsync(postId, userId))
                 {
-                    return Forbid("You can only update your own posts");
+                    return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<PostResponseDto>.ErrorResponse("You can only update your own posts", 403));
                 }
-
 
                 var updatedPost = await _postService.UpdatePostAsync(postId, updatePostDto);
-
                 if (updatedPost == null)
                 {
-                    return NotFound("Failed to update post!");
+                    return NotFound(ApiResponse<PostResponseDto>.ErrorResponse("Failed to update post", 404));
                 }
 
-                return Ok(updatedPost);
+                return Ok(ApiResponse<PostResponseDto>.SuccessResponse(updatedPost, "Post updated"));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while updating post");
-                return StatusCode(500, "An error occurred while processing your request");
+                return StatusCode(500, ApiResponse<PostResponseDto>.ErrorResponse("Internal server error", 500));
             }
         }
 
@@ -114,7 +115,8 @@ namespace FacebookClone.Controllers
         [HttpDelete("{postId}")]
         [Authorize]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult> DeletePost(Guid postId)
         {
             try
@@ -122,21 +124,19 @@ namespace FacebookClone.Controllers
                 var currentUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(currentUserId))
                 {
-                    return Unauthorized();
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized", 401));
                 }
 
                 var userId = Guid.Parse(currentUserId);
                 if (!await _postService.IsPostOwnerAsync(postId, userId))
                 {
-                    return Forbid("You can only delete your own posts");
+                    return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.ErrorResponse("You can only delete your own posts", 403));
                 }
 
-
                 var result = await _postService.DeletePostAsync(postId);
-
                 if (!result)
                 {
-                    return NotFound("Failed to delete post!");
+                    return NotFound(ApiResponse<object>.ErrorResponse("Failed to delete post", 404));
                 }
 
                 return NoContent();
@@ -144,7 +144,7 @@ namespace FacebookClone.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while deleting post");
-                return StatusCode(500, "An error occurred while processing your request");
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("Internal server error", 500));
             }
         }
     }

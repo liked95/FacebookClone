@@ -1,4 +1,5 @@
-﻿using FacebookClone.Models.DTOs;
+﻿using FacebookClone.Common;
+using FacebookClone.Models.DTOs;
 using FacebookClone.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -15,7 +16,8 @@ namespace FacebookClone.Controllers
         private readonly IPostService _postService;
         private readonly ILogger<UsersController> _logger;
 
-        public UsersController(IUserService userService,
+        public UsersController(
+            IUserService userService,
             IPostService postService,
             ILogger<UsersController> logger)
         {
@@ -28,46 +30,53 @@ namespace FacebookClone.Controllers
         /// Get user by ID
         /// </summary>
         [HttpGet("{id:guid}")]
-        [ProducesResponseType(typeof(UserResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<UserResponseDto>> GetUser(Guid id)
+        [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ApiResponse<UserResponseDto>>> GetUser(Guid id)
         {
             try
             {
                 var user = await _userService.GetUserByIdAsync(id);
                 if (user == null)
-                    return NotFound($"User with ID {id} not found");
+                    return NotFound(ApiResponse<UserResponseDto>.ErrorResponse($"User with ID {id} not found", 404));
 
-                return Ok(user);
+                return Ok(ApiResponse<UserResponseDto>.SuccessResponse(user, "User fetched"));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while retrieving user {UserId}", id);
-                return StatusCode(500, "An error occurred while processing your request");
+                return StatusCode(500, ApiResponse<UserResponseDto>.ErrorResponse("Internal server error", 500));
             }
         }
 
         /// <summary>
         /// Get all user's posts
         /// </summary>
-        
         [HttpGet("{userId:guid}/Posts")]
         [Authorize]
-        public async Task<ActionResult<IEnumerable<PostResponseDto>>> GetUserPosts(Guid userId, [FromQuery] int pageNumber = 1, int pageSize = 25)
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<PostResponseDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<PostResponseDto>>), StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<ApiResponse<IEnumerable<PostResponseDto>>>> GetUserPosts(Guid userId, [FromQuery] int pageNumber = 1, int pageSize = 25)
         {
-            var currentUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            _logger.LogInformation($"Current user id is {currentUserId}");
-            _logger.LogInformation("userId.ToString() = {UserId}", userId.ToString());
-
-
-
-            if (currentUserId != userId.ToString())
+            try
             {
-                return Forbid("You can query your posts only");
-            }
+                var currentUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                _logger.LogInformation("Current user ID: {CurrentUserId}, Requested user ID: {RequestedUserId}", currentUserId, userId);
 
-            var posts = await _postService.GetPostsByUserIdAsync(userId, pageNumber, pageSize);
-            return Ok(posts);
+                if (currentUserId != userId.ToString())
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden,
+                        ApiResponse<IEnumerable<PostResponseDto>>.ErrorResponse("You can query your posts only", 403));
+                }
+
+                var posts = await _postService.GetPostsByUserIdAsync(userId, pageNumber, pageSize);
+                return Ok(ApiResponse<IEnumerable<PostResponseDto>>.SuccessResponse(posts, "User posts fetched"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while retrieving posts for user {UserId}", userId);
+                return StatusCode(500, ApiResponse<IEnumerable<PostResponseDto>>.ErrorResponse("Internal server error", 500));
+            }
         }
     }
 }

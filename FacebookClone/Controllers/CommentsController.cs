@@ -1,4 +1,4 @@
-﻿using FacebookClone.Models.DomainModels;
+﻿using FacebookClone.Common;
 using FacebookClone.Models.DTOs;
 using FacebookClone.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -16,185 +16,173 @@ namespace FacebookClone.Controllers
         private readonly ICommentService _commentService;
         private readonly ILogger<CommentsController> _logger;
 
-        public CommentsController(
-            ICommentService commentService,
-            ILogger<CommentsController> logger
-        )
+        public CommentsController(ICommentService commentService, ILogger<CommentsController> logger)
         {
             _commentService = commentService;
             _logger = logger;
         }
 
-        /// <summary>
-        /// Get all comments for a specific post
-        /// </summary>
         [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<CommentResponseDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<CommentResponseDto>>> GetPostComments(
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<CommentResponseDto>>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResponse<IEnumerable<CommentResponseDto>>>> GetPostComments(
             Guid postId,
             [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 25
-        )
+            [FromQuery] int pageSize = 25)
         {
-            // TODO: Add some kind of authorization for friendsonly or public posts
             try
             {
                 var comments = await _commentService.GetCommentsByPostIdAsync(postId, pageNumber, pageSize);
-                //Console.WriteLine("DO go here");
-                return Ok(comments);
+                return Ok(ApiResponse<IEnumerable<CommentResponseDto>>.SuccessResponse(comments, "Comments fetched"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while retrieving comments for post {PostId}", postId);
-                return StatusCode(500, "An error occurred while processing your request");
+                _logger.LogError(ex, "Error retrieving comments for post {PostId}", postId);
+                return StatusCode(500, ApiResponse<IEnumerable<CommentResponseDto>>.ErrorResponse("Internal server error", 500));
             }
         }
 
-        /// <summary>
-        /// Get a specific comment from a post
-        /// </summary>
         [HttpGet("{commentId:guid}")]
-        [ProducesResponseType(typeof(CommentResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<CommentResponseDto>> GetComment(Guid postId, Guid commentId)
+        [ProducesResponseType(typeof(ApiResponse<CommentResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<CommentResponseDto>), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ApiResponse<CommentResponseDto>>> GetComment(Guid postId, Guid commentId)
         {
             try
             {
                 var comment = await _commentService.GetCommentByIdAsync(commentId);
                 if (comment == null || comment.PostId != postId)
-                    return NotFound($"Comment with ID {commentId} not found in post {postId}");
+                    return NotFound(ApiResponse<CommentResponseDto>.ErrorResponse($"Comment with ID {commentId} not found in post {postId}", 404));
 
-                return Ok(comment);
+                return Ok(ApiResponse<CommentResponseDto>.SuccessResponse(comment));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while retrieving comment {CommentId} from post {PostId}", commentId, postId);
-                return StatusCode(500, "An error occurred while processing your request");
+                _logger.LogError(ex, "Error retrieving comment {CommentId} from post {PostId}", commentId, postId);
+                return StatusCode(500, ApiResponse<CommentResponseDto>.ErrorResponse("Internal server error", 500));
             }
         }
 
-        /// <summary>
-        /// Create a new comment
-        /// </summary>
         [HttpPost]
-        //[Authorize]
-        [ProducesResponseType(typeof(CommentResponseDto), StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<CommentResponseDto>> CreateComment(Guid postId, [FromBody] CreateCommentDto createCommentDto)
+        [Authorize]
+        [ProducesResponseType(typeof(ApiResponse<CommentResponseDto>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiResponse<CommentResponseDto>), StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<ApiResponse<CommentResponseDto>>> CreateComment(Guid postId, [FromBody] CreateCommentDto createCommentDto)
         {
             try
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    var errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList();
+
+                    return BadRequest(ApiResponse<CommentResponseDto>.ErrorResponse("Validation failed", 400, errors));
                 }
 
                 var currentUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(currentUserId))
                 {
-                    return Unauthorized();
+                    return Unauthorized(ApiResponse<CommentResponseDto>.ErrorResponse("Unauthorized", 401));
                 }
-
 
                 var createdComment = await _commentService.CreateCommentAsync(Guid.Parse(currentUserId), postId, createCommentDto);
                 if (createdComment == null)
                 {
-                    return BadRequest("Failed to create comment");
+                    return BadRequest(ApiResponse<CommentResponseDto>.ErrorResponse("Failed to create comment"));
                 }
 
-                return CreatedAtAction(nameof(GetComment), new { postId = postId, commentId = createdComment.Id }, createdComment);
+                return CreatedAtAction(nameof(GetComment),
+                    new { postId = postId, commentId = createdComment.Id },
+                    ApiResponse<CommentResponseDto>.SuccessResponse(createdComment, "Comment created", 201));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while creating comment on post {PostId}", postId);
-                return StatusCode(500, "An error occurred while processing your request");
+                _logger.LogError(ex, "Error creating comment on post {PostId}", postId);
+                return StatusCode(500, ApiResponse<CommentResponseDto>.ErrorResponse("Internal server error", 500));
             }
         }
 
-        /// <summary>
-        /// Update a comment
-        /// </summary>
         [HttpPut("{commentId:guid}")]
         [Authorize]
-        [ProducesResponseType(typeof(CommentResponseDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        public async Task<ActionResult<CommentResponseDto>> UpdateComment(Guid postId, Guid commentId, [FromBody] UpdateCommentDto updateCommentDto)
+        [ProducesResponseType(typeof(ApiResponse<CommentResponseDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<CommentResponseDto>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse<CommentResponseDto>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse<CommentResponseDto>), StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<ApiResponse<CommentResponseDto>>> UpdateComment(Guid postId, Guid commentId, [FromBody] UpdateCommentDto updateCommentDto)
         {
             try
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    var errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList();
+
+                    return BadRequest(ApiResponse<CommentResponseDto>.ErrorResponse("Validation failed", 400, errors));
                 }
 
                 var currentUserId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(currentUserId))
                 {
-                    return Unauthorized();
+                    return Unauthorized(ApiResponse<CommentResponseDto>.ErrorResponse("Unauthorized", 401));
                 }
 
                 var existingComment = await _commentService.GetCommentByIdAsync(commentId);
                 if (existingComment == null || existingComment.PostId != postId)
                 {
-                    return NotFound($"Comment with ID {commentId} not found in post {postId}");
+                    return NotFound(ApiResponse<CommentResponseDto>.ErrorResponse($"Comment with ID {commentId} not found in post {postId}", 404));
                 }
 
                 if (!await _commentService.IsCommentOwnerAsync(commentId, Guid.Parse(currentUserId)))
                 {
-                    return StatusCode(StatusCodes.Status403Forbidden, "You can only update your own comments");
+                    return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<CommentResponseDto>.ErrorResponse("You can only update your own comments", 403));
                 }
 
                 var updatedComment = await _commentService.UpdateCommentAsync(commentId, updateCommentDto);
                 if (updatedComment == null)
-                    return NotFound($"Comment with ID {commentId} not found");
+                    return NotFound(ApiResponse<CommentResponseDto>.ErrorResponse("Failed to update comment", 404));
 
-                return Ok(updatedComment);
+                return Ok(ApiResponse<CommentResponseDto>.SuccessResponse(updatedComment, "Comment updated"));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while updating comment {CommentId} on post {PostId}", commentId, postId);
-                return StatusCode(500, "An error occurred while processing your request");
+                _logger.LogError(ex, "Error updating comment {CommentId} on post {PostId}", commentId, postId);
+                return StatusCode(500, ApiResponse<CommentResponseDto>.ErrorResponse("Internal server error", 500));
             }
         }
 
-        /// <summary>
-        /// Delete a comment from a post (owner only)
-        /// </summary>
         [HttpDelete("{commentId:guid}")]
         [Authorize]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
         public async Task<ActionResult> DeleteComment(Guid postId, Guid commentId)
         {
             try
             {
                 var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(currentUserId))
-                    return Unauthorized();
+                    return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized", 401));
 
-                // Verify comment belongs to the post
                 var existingComment = await _commentService.GetCommentByIdAsync(commentId);
                 if (existingComment == null || existingComment.PostId != postId)
-                    return NotFound($"Comment with ID {commentId} not found in post {postId}");
+                    return NotFound(ApiResponse<object>.ErrorResponse($"Comment with ID {commentId} not found in post {postId}", 404));
 
                 if (!await _commentService.IsCommentOwnerAsync(commentId, Guid.Parse(currentUserId)))
-                    return Forbid("You can only delete your own comments");
+                    return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.ErrorResponse("You can only delete your own comments", 403));
 
                 var result = await _commentService.DeleteCommentAsync(commentId);
                 if (!result)
-                    return NotFound($"Comment with ID {commentId} not found");
+                    return NotFound(ApiResponse<object>.ErrorResponse("Failed to delete comment", 404));
 
                 return NoContent();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while deleting comment {CommentId} from post {PostId}", commentId, postId);
-                return StatusCode(500, "An error occurred while processing your request");
+                _logger.LogError(ex, "Error deleting comment {CommentId} from post {PostId}", commentId, postId);
+                return StatusCode(500, ApiResponse<object>.ErrorResponse("Internal server error", 500));
             }
         }
-
     }
 }

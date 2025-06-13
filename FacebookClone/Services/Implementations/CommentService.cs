@@ -49,9 +49,14 @@ namespace FacebookClone.Services.Implementations
             return MapToCommentResponseDto(createdComment);
         }
 
-        public Task<bool> DeleteCommentAsync(Guid id)
+        public async Task<bool> DeleteCommentAsync(Guid id)
         {
-            throw new NotImplementedException();
+            var result = await _commentRepository.DeleteCommentAsync(id);
+            if (result)
+            {
+                _logger.LogInformation("Comment deleted successfully with ID: {id}", id);
+            }
+            return result;
         }
 
         public async Task<CommentResponseDto?> GetCommentByIdAsync(Guid id)
