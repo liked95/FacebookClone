@@ -10,5 +10,6 @@ namespace FacebookClone.Services.Interfaces
         Task<PostResponseDto?> UpdatePostAsync(Guid id, UpdatePostDto post);
         Task<bool> DeletePostAsync(Guid postId);
         Task<bool> IsPostOwnerAsync(Guid postId, Guid userId);
+        Task<IEnumerable<PostResponseDto>> GetPostsForFeed(int pageNumber, int pageSize);
     }
 }

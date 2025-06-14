@@ -3,6 +3,7 @@ using FacebookClone.Models.DTOs;
 using FacebookClone.Repositories.Implementations;
 using FacebookClone.Repositories.Interfaces;
 using FacebookClone.Services.Interfaces;
+using Microsoft.Extensions.Hosting;
 using System.Threading.Tasks;
 
 namespace FacebookClone.Services.Implementations
@@ -105,6 +106,18 @@ namespace FacebookClone.Services.Implementations
             return await _postRepository.IsPostOwnerAsync(postId, userId);
         }
 
+        public async Task<IEnumerable<PostResponseDto>> GetPostsForFeed(int pageNumber, int pageSize)
+        {
+            var posts = await _postRepository.GetAllPostsForFeed(pageNumber, pageSize);
+            var result = new List<PostResponseDto>();
+
+            foreach (var post in posts)
+            {
+                result.Add(await MapToPostResponseDto(post));
+            }
+            return result;
+        }
+
         private async Task<PostResponseDto> MapToPostResponseDto(Post post)
         {
             var commentsCount = await _commentRepository.GetPostCommentsCountAsync(post.Id);
@@ -124,6 +137,5 @@ namespace FacebookClone.Services.Implementations
                 CommentsCount = commentsCount
             };
         }
-
     }
 }

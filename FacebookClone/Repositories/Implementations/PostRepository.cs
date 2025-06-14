@@ -74,6 +74,18 @@ namespace FacebookClone.Repositories.Implementations
                 .ToListAsync();
         }
 
+
+        public async Task<IEnumerable<Post>> GetAllPostsForFeed(int pageNumber, int pageSize)
+        {
+            return await _context.Posts
+                .AsNoTracking()
+                .Include(p => p.User)
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+        }
+
         public  async Task<Post?> GetByIdAsync(Guid id)
         {
             var post = await _context.Posts.FirstOrDefaultAsync(p => p.Id == id);

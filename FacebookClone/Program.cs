@@ -10,12 +10,25 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+var frontendUrl = builder.Configuration["Cors:FrontendUrl"];
 
 // Add services to the container.
 builder.Services.AddControllers();
 
 // Connect database
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFE", policy =>
+    {
+        policy.WithOrigins(frontendUrl!)
+             .AllowAnyHeader()
+             .AllowAnyMethod()
+             .AllowCredentials();
+    });
+});
 
 // JWT
 builder.Services.AddAuthentication(options =>
@@ -101,6 +114,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowFE");
 
 app.UseAuthentication();
 app.UseAuthorization();
