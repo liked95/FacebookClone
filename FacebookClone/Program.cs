@@ -52,19 +52,20 @@ AddJwtBearer(options =>
 });
 
 builder.Services.AddAuthorization();
+builder.Services.AddHttpContextAccessor();
 
 // Register repository
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IPostRepository, PostRepository>();
 builder.Services.AddScoped<ICommentRepository, CommentRepository>();
-
+builder.Services.AddScoped<ILikeRepository, LikeRepository>();
 
 // Register services
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
-
+builder.Services.AddScoped<ILikeService, LikeService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

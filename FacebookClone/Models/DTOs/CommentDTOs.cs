@@ -22,9 +22,11 @@ namespace FacebookClone.Models.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public bool IsEdited { get; set; }
-        public Guid UserId { get; set; }
+        public Guid? UserId { get; set; }
         public string Username { get; set; } = string.Empty;
         public string? UserAvatarUrl { get; set; }
         public Guid PostId { get; set; }
+        public int LikesCount { get; set; }
+        public bool IsLikedByCurrentUser { get; set; }
     }
 }

@@ -2,6 +2,9 @@
 using FacebookClone.Models.DTOs;
 using FacebookClone.Repositories.Interfaces;
 using FacebookClone.Services.Interfaces;
+using Microsoft.Extensions.Hosting;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace FacebookClone.Services.Implementations
 {
@@ -9,14 +12,20 @@ namespace FacebookClone.Services.Implementations
     {
         private readonly ICommentRepository _commentRepository;
         private readonly IPostRepository _postRepository;
+        private readonly ILikeRepository _likeRepository;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger<CommentService> _logger;
 
         public CommentService(ICommentRepository commentRepository,
             IPostRepository postRepository,
+            ILikeRepository likeRepository,
+            IHttpContextAccessor httpContextAccessor,
             ILogger<CommentService> logger)
         {
             _commentRepository = commentRepository;
             _postRepository = postRepository;
+            _likeRepository = likeRepository;
+            _httpContextAccessor = httpContextAccessor;
             _logger = logger;
         }
 
@@ -46,7 +55,7 @@ namespace FacebookClone.Services.Implementations
             }
 
             _logger.LogInformation("Comment created successfully with ID: {CommentId}", createdComment.Id);
-            return MapToCommentResponseDto(createdComment);
+            return await MapToCommentResponseDto(createdComment);
         }
 
         public async Task<bool> DeleteCommentAsync(Guid id)
@@ -67,13 +76,21 @@ namespace FacebookClone.Services.Implementations
                 return null;
             }
 
-            return MapToCommentResponseDto(comment);
+            return await MapToCommentResponseDto(comment);
         }
 
         public async Task<IEnumerable<CommentResponseDto>> GetCommentsByPostIdAsync(Guid postId, int pageNumber, int pageSize)
         {
             var comments = await _commentRepository.GetCommentsByPostIdAsync(postId, pageNumber, pageSize);
-            return comments.Select(MapToCommentResponseDto);
+            var result = new List<CommentResponseDto>();
+
+            foreach (var comment in comments)
+            {
+                var commentResponseDto = await MapToCommentResponseDto(comment);
+                result.Add(commentResponseDto);
+            }
+
+            return result;
         }
 
         public async Task<bool> IsCommentOwnerAsync(Guid commentId, Guid userId)
@@ -102,11 +119,23 @@ namespace FacebookClone.Services.Implementations
             }
 
             _logger.LogInformation("Comment updated successfully with ID: {CommentId}", updatedComment.Id);
-            return MapToCommentResponseDto(updatedComment);
+            return await MapToCommentResponseDto(updatedComment);
         }
 
-        private static CommentResponseDto MapToCommentResponseDto(Comment comment)
+        // Helper method to get current user ID
+        private Guid? GetCurrentUserId()
         {
+            var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
+        }
+
+        private  async Task<CommentResponseDto> MapToCommentResponseDto(Comment comment)
+        {
+            var likesCount = await _likeRepository.GetCommentLikesCountAsync(comment.Id);
+            var currentUserId = GetCurrentUserId();
+            var isLikedByCurrentUser = currentUserId.HasValue &&
+                await _likeRepository.IsCommentLikedByUserAsync(comment.Id, currentUserId.Value);
+
             return new CommentResponseDto
             {
                 Id = comment.Id,
@@ -114,10 +143,12 @@ namespace FacebookClone.Services.Implementations
                 CreatedAt = comment.CreatedAt,
                 UpdatedAt = comment.UpdatedAt,
                 IsEdited = comment.IsEdited,
-                UserId = comment.UserId,
+                UserId = comment.UserId ?? Guid.Empty,
                 Username = comment.User?.Username ?? string.Empty,
                 UserAvatarUrl = comment.User?.AvatarUrl,
-                PostId = comment.PostId
+                PostId = comment.PostId,
+                LikesCount = likesCount,
+                IsLikedByCurrentUser = isLikedByCurrentUser
             };
         }
     }

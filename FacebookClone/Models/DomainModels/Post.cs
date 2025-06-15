@@ -15,11 +15,10 @@ namespace FacebookClone.Models.DomainModels
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
-        [Required]
-        public Guid UserId { get; set; }
+        public Guid? UserId { get; set; }
 
         [ForeignKey("UserId")]
-        public virtual User User { get; set; } = null!;
+        public virtual User? User { get; set; }
 
         public PrivacyType Privacy { get; set; } = PrivacyType.Public;
 
@@ -39,6 +38,7 @@ namespace FacebookClone.Models.DomainModels
 
         // Navigation Properties
         public virtual ICollection<Comment> Comments { get; set; } = new List<Comment>();
+        public virtual ICollection<PostLike> Likes { get; set; } = new List<PostLike>(); 
 
     }
 }

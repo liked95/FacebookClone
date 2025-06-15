@@ -43,7 +43,7 @@ namespace FacebookClone.Models.DTOs
         public Guid Id { get; set; }
         public string Content { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
-        public Guid UserId { get; set; }
+        public Guid? UserId { get; set; }
         public string Username { get; set; } = string.Empty;
         public string? UserAvatarUrl { get; set; }
         public PrivacyType Privacy { get; set; }
@@ -51,9 +51,9 @@ namespace FacebookClone.Models.DTOs
         public string? ImageUrl { get; set; }
         public string? VideoUrl { get; set; }
         public string? FileUrl { get; set; }
-
-        [Required]
-        public int CommentsCount { get; set; } = 0;
+        public int CommentsCount { get; set; }
+        public int LikesCount { get; set; }
+        public bool IsLikedByCurrentUser { get; set; }
     }
 
     public class PostListDto

@@ -21,15 +21,13 @@ namespace FacebookClone.Models.DomainModels
 
 
         // Foreign to User
-        [Required]
-        public Guid UserId { get; set; }
+        public Guid? UserId { get; set; }
 
         [ForeignKey("UserId")]
-        public virtual User User { get; set; } = null!;
+        public virtual User? User { get; set; }
 
 
         // Foreign to Post
-        [Required]
         public Guid PostId { get; set; }
 
         [ForeignKey("PostId")]
@@ -38,5 +36,7 @@ namespace FacebookClone.Models.DomainModels
 
         // The properties for threaded replies (ParentCommentId, Replies, Depth)
         // have been removed for simplicity, allowing only one level of comments
+
+        public virtual ICollection<CommentLike> Likes { get; set; } = new List<CommentLike>();
     }
 }

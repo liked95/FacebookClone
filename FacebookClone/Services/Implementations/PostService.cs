@@ -4,6 +4,7 @@ using FacebookClone.Repositories.Implementations;
 using FacebookClone.Repositories.Interfaces;
 using FacebookClone.Services.Interfaces;
 using Microsoft.Extensions.Hosting;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace FacebookClone.Services.Implementations
@@ -12,12 +13,20 @@ namespace FacebookClone.Services.Implementations
     {
         private readonly IPostRepository _postRepository;
         private readonly ICommentRepository _commentRepository;
+        private readonly ILikeRepository _likeRepository;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger<PostService> _logger;
 
-        public PostService(IPostRepository postRepository, ICommentRepository commentRepository, ILogger<PostService> logger)
+        public PostService(IPostRepository postRepository, 
+            ICommentRepository commentRepository,
+            ILikeRepository likeRepository,
+            IHttpContextAccessor httpContextAccessor,
+            ILogger<PostService> logger)
         {
             _postRepository = postRepository;
             _commentRepository = commentRepository;
+            _likeRepository = likeRepository;
+            _httpContextAccessor = httpContextAccessor;
             _logger = logger;
         }
         public async Task<IEnumerable<PostResponseDto>> GetPostsByUserIdAsync(Guid userId, int pageNumber, int pageSize)
@@ -118,15 +127,28 @@ namespace FacebookClone.Services.Implementations
             return result;
         }
 
+        // Helper method to get current user ID
+        private Guid? GetCurrentUserId()
+        {
+            var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
+        }
+
         private async Task<PostResponseDto> MapToPostResponseDto(Post post)
         {
             var commentsCount = await _commentRepository.GetPostCommentsCountAsync(post.Id);
+            var likesCount = await _likeRepository.GetPostLikesCountAsync(post.Id);
+
+            var currentUserId = GetCurrentUserId();
+            var isLikedByCurrentUser = currentUserId.HasValue &&
+                await _likeRepository.IsPostLikedByUserAsync(post.Id, currentUserId.Value);
+
             return new PostResponseDto
             {
                 Id = post.Id,
                 Content = post.Content,
                 CreatedAt = post.CreatedAt,
-                UserId = post.UserId,
+                UserId = post.UserId ?? Guid.Empty,
                 Username = post.User?.Username ?? string.Empty,
                 UserAvatarUrl = post.User?.AvatarUrl,
                 Privacy = post.Privacy,
@@ -134,7 +156,10 @@ namespace FacebookClone.Services.Implementations
                 ImageUrl = post.ImageUrl,
                 VideoUrl = post.VideoUrl,
                 FileUrl = post.FileUrl,
-                CommentsCount = commentsCount
+                CommentsCount = commentsCount,
+                LikesCount = likesCount,
+                IsLikedByCurrentUser = isLikedByCurrentUser
+
             };
         }
     }
