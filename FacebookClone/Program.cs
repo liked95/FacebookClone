@@ -10,13 +10,19 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+var env = builder.Environment;
 var frontendUrl = builder.Configuration["Cors:FrontendUrl"];
 
 // Add services to the container.
 builder.Services.AddControllers();
 
+// Determine which connection string to use
+string connectionString = env.IsDevelopment()
+    ? builder.Configuration.GetConnectionString("DefaultConnection")!
+    : builder.Configuration.GetConnectionString("AZURE_SQL_CONNECTIONSTRING")!;
+
 // Connect database
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 
 // Configure CORS
 builder.Services.AddCors(options =>
