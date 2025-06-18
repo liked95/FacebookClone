@@ -33,7 +33,6 @@ jobs:
         run: dotnet tool install --global dotnet-ef --version 8.*
 
       - name: Create migrations bundle
-        working-directory: FacebookClone/FacebookClone
         run: dotnet ef migrations bundle --runtime linux-x64 -o ${{env.DOTNET_ROOT}}/myapp/migrationsbunndle
 
       - name: Upload artifact for deployment job
