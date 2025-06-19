@@ -16,6 +16,7 @@ builder.Logging.AddConsole(); // critical step
 var env = builder.Environment;
 var frontendUrl = builder.Configuration["Cors:FrontendUrl"];
 
+
 // Add services to the container.
 builder.Services.AddControllers();
 
