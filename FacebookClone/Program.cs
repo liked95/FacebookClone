@@ -14,7 +14,6 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole(); // critical step
 
 var env = builder.Environment;
-var frontendUrl = builder.Configuration["Cors:FrontendUrl"];
 
 
 // Add services to the container.
@@ -27,18 +26,6 @@ string connectionString = env.IsDevelopment()
 
 // Connect database
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
-
-// Configure CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFE", policy =>
-    {
-        policy.WithOrigins(frontendUrl!)
-             .AllowAnyHeader()
-             .AllowAnyMethod()
-             .AllowCredentials();
-    });
-});
 
 // JWT
 builder.Services.AddAuthentication(options =>
@@ -125,8 +112,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-app.UseCors("AllowFE");
 
 app.UseAuthentication();
 app.UseAuthorization();
