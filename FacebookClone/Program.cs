@@ -10,6 +10,9 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(); // critical step
+
 var env = builder.Environment;
 var frontendUrl = builder.Configuration["Cors:FrontendUrl"];
 
