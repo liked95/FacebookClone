@@ -3,6 +3,7 @@ using FacebookClone.Models.DTOs;
 using FacebookClone.Repositories.Interfaces;
 using FacebookClone.Services.Interfaces;
 using Microsoft.Extensions.Hosting;
+using System.Runtime.InteropServices;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -44,7 +45,20 @@ namespace FacebookClone.Services.Implementations
                 CreatedAt = DateTime.UtcNow,
                 UserId = userId,
                 PostId = post.Id,
+                ParentCommentId = createCommentDto.ParentCommentId
             };
+
+            // Calculate level
+            if (createCommentDto.ParentCommentId.HasValue)
+            {
+                var parent = await GetCommentByIdAsync(createCommentDto.ParentCommentId.Value);
+                if (parent == null || parent.PostId != post.Id)
+                {
+                    throw new InvalidOperationException("Invalid parent comment");
+                }
+
+                comment.Level = parent.Level + 1;
+            }
 
             var createdComment = await _commentRepository.CreateCommentAsync(comment);
 
@@ -79,9 +93,9 @@ namespace FacebookClone.Services.Implementations
             return await MapToCommentResponseDto(comment);
         }
 
-        public async Task<IEnumerable<CommentResponseDto>> GetCommentsByPostIdAsync(Guid postId, int pageNumber, int pageSize)
+        public async Task<IEnumerable<CommentResponseDto>> GetCommentsByPostIdAsync(Guid postId, int pageNumber, int pageSize, Guid? parentCommentId = null)
         {
-            var comments = await _commentRepository.GetCommentsByPostIdAsync(postId, pageNumber, pageSize);
+            var comments = await _commentRepository.GetCommentsByPostIdAsync(postId, pageNumber, pageSize, parentCommentId);
             var result = new List<CommentResponseDto>();
 
             foreach (var comment in comments)
@@ -122,6 +136,18 @@ namespace FacebookClone.Services.Implementations
             return await MapToCommentResponseDto(updatedComment);
         }
 
+        public async Task<IEnumerable<CommentResponseDto>> GetRepliesForCommentAsync(Guid parentCommentId, int pageNumber, int pageSize)
+        {
+            var comment = await GetCommentByIdAsync(parentCommentId);
+            if (comment == null)
+            {
+                throw new InvalidOperationException("Invalid parent comment");
+            }
+
+
+            return await GetCommentsByPostIdAsync(comment.PostId, pageNumber, pageSize, parentCommentId);
+        }
+
         // Helper method to get current user ID
         private Guid? GetCurrentUserId()
         {
@@ -135,6 +161,7 @@ namespace FacebookClone.Services.Implementations
             var currentUserId = GetCurrentUserId();
             var isLikedByCurrentUser = currentUserId.HasValue &&
                 await _likeRepository.IsCommentLikedByUserAsync(comment.Id, currentUserId.Value);
+            var replyCount = await _commentRepository.GetReplyCountByCommentIdAsync(comment.Id);
 
             return new CommentResponseDto
             {
@@ -143,6 +170,9 @@ namespace FacebookClone.Services.Implementations
                 CreatedAt = comment.CreatedAt,
                 UpdatedAt = comment.UpdatedAt,
                 IsEdited = comment.IsEdited,
+                Level = comment.Level,
+                ParentCommentId = comment.ParentCommentId,
+                ReplyCount = replyCount,
                 UserId = comment.UserId ?? Guid.Empty,
                 Username = comment.User?.Username ?? string.Empty,
                 UserAvatarUrl = comment.User?.AvatarUrl,

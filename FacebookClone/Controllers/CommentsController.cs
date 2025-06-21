@@ -4,6 +4,7 @@ using FacebookClone.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.OpenApi.Validations;
 using System.Security.Claims;
 
 namespace FacebookClone.Controllers
@@ -11,6 +12,7 @@ namespace FacebookClone.Controllers
     [ApiController]
     [Route("Api/Posts/{postId:guid}/comments")]
     [Produces("application/json")]
+    [Authorize]
     public class CommentsController : ControllerBase
     {
         private readonly ICommentService _commentService;
@@ -31,8 +33,35 @@ namespace FacebookClone.Controllers
         {
             try
             {
-                var comments = await _commentService.GetCommentsByPostIdAsync(postId, pageNumber, pageSize);
-                return Ok(ApiResponse<IEnumerable<CommentResponseDto>>.SuccessResponse(comments, "Comments fetched"));
+                var topLevelComments = await _commentService.GetCommentsByPostIdAsync(postId, pageNumber, pageSize, parentCommentId: null);
+                return Ok(ApiResponse<IEnumerable<CommentResponseDto>>.SuccessResponse(topLevelComments, "Comments fetched"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving comments for post {PostId}", postId);
+                return StatusCode(500, ApiResponse<IEnumerable<CommentResponseDto>>.ErrorResponse("Internal server error", 500));
+            }
+        }
+
+        [HttpGet("{parrentCommentId:guid}/replies")]
+        [ProducesResponseType(typeof(ApiResponse<IEnumerable<CommentResponseDto>>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ApiResponse<IEnumerable<CommentResponseDto>>>> GetCommentReplies(
+            Guid postId,
+            Guid parrentCommentId,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 25)
+        {
+            try
+            {
+                // Validate parent comment belongs to post
+                var parent = await _commentService.GetCommentByIdAsync(parrentCommentId);
+                if (parent == null || parent.PostId != postId)
+                {
+                    return NotFound(ApiResponse<IEnumerable<CommentResponseDto>>.ErrorResponse("Invalid comment"));
+                }
+
+                var replies = await _commentService.GetRepliesForCommentAsync(parrentCommentId, pageNumber, pageSize);
+                return Ok(ApiResponse<IEnumerable<CommentResponseDto>>.SuccessResponse(replies, "Replies fetched"));
             }
             catch (Exception ex)
             {
@@ -184,5 +213,7 @@ namespace FacebookClone.Controllers
                 return StatusCode(500, ApiResponse<object>.ErrorResponse("Internal server error", 500));
             }
         }
+
+
     }
 }

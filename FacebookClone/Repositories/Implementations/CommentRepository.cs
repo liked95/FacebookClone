@@ -59,7 +59,8 @@ namespace FacebookClone.Repositories.Implementations
                 _context.Comments.Remove(comment);
                 await _context.SaveChangesAsync();
                 return true;
-            } catch
+            }
+            catch
             {
                 return false;
             }
@@ -70,12 +71,25 @@ namespace FacebookClone.Repositories.Implementations
             return await _context.Comments.FirstOrDefaultAsync(c => c.Id == id);
         }
 
-        public async Task<IEnumerable<Comment>> GetCommentsByPostIdAsync(Guid postId, int pageNumber, int pageSize)
+        public async Task<IEnumerable<Comment>> GetCommentsByPostIdAsync(Guid postId, int pageNumber, int pageSize, Guid? parentCommentId)
         {
-            return await _context.Comments
+            var query = _context.Comments
                 .AsNoTracking()
                 .Include(c => c.User)
-                .Where(c => c.PostId == postId)
+                .Where(c => c.PostId == postId);
+
+
+
+            if (parentCommentId.HasValue)
+            {
+                query = query.Where(c => c.ParentCommentId == parentCommentId);
+            }
+            else
+            {
+                query = query.Where(c => c.ParentCommentId == null);
+            }
+
+            return await query
                 .OrderByDescending(c => c.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -91,6 +105,23 @@ namespace FacebookClone.Repositories.Implementations
         public async Task<int> GetPostCommentsCountAsync(Guid postId)
         {
             return await _context.Comments.CountAsync(c => c.PostId == postId);
+        }
+
+        public async Task<int> GetReplyCountByCommentIdAsync(Guid id)
+        {
+            return await _context.Comments.CountAsync(c => c.ParentCommentId == id);
+        }
+
+        public async Task<IEnumerable<Comment>> GetRepliesForCommentAsync(Guid parentCommentId, int pageNumber, int pageSize)
+        {
+            return await _context.Comments
+                .AsNoTracking()
+                .Include(c=>c.User)
+                .Where(c => c.ParentCommentId == parentCommentId)
+                .OrderByDescending(c => c.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
         }
     }
 }

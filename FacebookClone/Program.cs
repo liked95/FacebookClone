@@ -15,6 +15,19 @@ builder.Logging.AddConsole(); // critical step
 
 var env = builder.Environment;
 
+if (env.IsDevelopment())
+{
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowDevevelopmentCors", policy =>
+        {
+            policy
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+        });
+    });
+}
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -103,6 +116,11 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+if (env.IsDevelopment())
+{
+    app.UseCors("AllowDevevelopmentCors");
+}
 
 // Configure the HTTP request pipeline.
 app.UseSwagger();

@@ -33,10 +33,16 @@ namespace FacebookClone.Models.DomainModels
         [ForeignKey("PostId")]
         public virtual Post Post { get; set; } = null!;
 
+        public int Level { get; set; } = 0;
 
-        // The properties for threaded replies (ParentCommentId, Replies, Depth)
-        // have been removed for simplicity, allowing only one level of comments
+        // Parent comment
+        public Guid? ParentCommentId { get; set; }
 
+        [ForeignKey("ParentCommentId")]
+        public virtual Comment? ParentComment { get; set; }
+
+
+        public virtual ICollection<Comment> Replies { get; set; } = new List<Comment>();
         public virtual ICollection<CommentLike> Likes { get; set; } = new List<CommentLike>();
     }
 }
