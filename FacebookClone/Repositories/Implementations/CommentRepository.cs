@@ -3,6 +3,8 @@ using FacebookClone.Models.DomainModels;
 using FacebookClone.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using System.ComponentModel.Design;
 using System.Runtime.InteropServices;
 
 namespace FacebookClone.Repositories.Implementations
@@ -48,22 +50,41 @@ namespace FacebookClone.Repositories.Implementations
 
         public async Task<bool> DeleteCommentAsync(Guid id)
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                var comment = await GetCommentByIdAsync(id);
-                if (comment == null)
-                {
-                    return false;
-                }
+                var commentsToDelete = new List<Comment>();
+                await CollectCommentsForDeletion(id, commentsToDelete);
 
-                _context.Comments.Remove(comment);
-                await _context.SaveChangesAsync();
+                _context.Comments.RemoveRange(commentsToDelete);
+                await _context.SaveChangesAsync(); // Single save operation
+
+                await transaction.CommitAsync();
                 return true;
+
             }
             catch
             {
+                await transaction.RollbackAsync();
                 return false;
             }
+        }
+
+        private async Task CollectCommentsForDeletion(Guid commentId, List<Comment> commentsToDelete)
+        {
+            var comment = await _context.Comments.FindAsync(commentId);
+            if (comment == null) return;
+
+            var replies = await _context.Comments
+                .Where(c => c.ParentCommentId == commentId)
+                .ToListAsync();
+
+            foreach (var reply in replies)
+            {
+                await CollectCommentsForDeletion(reply.Id, commentsToDelete);
+            }
+
+            commentsToDelete.Add(comment);
         }
 
         public async Task<Comment?> GetCommentByIdAsync(Guid id)
@@ -116,7 +137,7 @@ namespace FacebookClone.Repositories.Implementations
         {
             return await _context.Comments
                 .AsNoTracking()
-                .Include(c=>c.User)
+                .Include(c => c.User)
                 .Where(c => c.ParentCommentId == parentCommentId)
                 .OrderByDescending(c => c.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)

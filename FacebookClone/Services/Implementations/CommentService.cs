@@ -3,6 +3,7 @@ using FacebookClone.Models.DTOs;
 using FacebookClone.Repositories.Interfaces;
 using FacebookClone.Services.Interfaces;
 using Microsoft.Extensions.Hosting;
+using System.ComponentModel.Design;
 using System.Runtime.InteropServices;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -77,8 +78,13 @@ namespace FacebookClone.Services.Implementations
             var result = await _commentRepository.DeleteCommentAsync(id);
             if (result)
             {
-                _logger.LogInformation("Comment deleted successfully with ID: {id}", id);
+                _logger.LogInformation("Comment and its replies deleted successfully with ID: {Id}", id);
             }
+            else
+            {
+                _logger.LogWarning("Failed to delete comment with ID: {Id}", id);
+            }
+
             return result;
         }
 
