@@ -1,4 +1,5 @@
-﻿using FacebookClone.Models.DomainModels;
+﻿using FacebookClone.Models.Constants;
+using FacebookClone.Models.DomainModels;
 
 namespace FacebookClone.Repositories.Interfaces
 {
@@ -7,10 +8,10 @@ namespace FacebookClone.Repositories.Interfaces
         Task<MediaFile> CreateAsync(MediaFile mediaFile);
         Task<MediaFile?> GetByIdAsync(Guid id);
         Task<List<MediaFile>> GetByIdsAsync(List<Guid> ids);
-        Task<List<MediaFile>> GetByAttachmentAsync(string attachmentType, string attachmentId);
-        Task<MediaFile?> GetSingleByAttachmentAsync(string attachmentType, string attachmentId); // For avatars
+        Task<List<MediaFile>> GetByAttachmentAsync(MediaAttachmentType attachmentType, string attachmentId);
+        Task<MediaFile?> GetSingleByAttachmentAsync(MediaAttachmentType attachmentType, string attachmentId); // For avatars
         Task<bool> DeleteAsync(Guid id);
-        Task<bool> DeleteByAttachmentAsync(string attachmentType, string attachmentId);
+        Task<bool> DeleteByAttachmentAsync(MediaAttachmentType attachmentType, string attachmentId);
         Task UpdateAsync(MediaFile mediaFile);
     }
 }

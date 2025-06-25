@@ -1,4 +1,5 @@
 ﻿using FacebookClone.Data;
+using FacebookClone.Models.Constants;
 using FacebookClone.Models.DomainModels;
 using FacebookClone.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -35,7 +36,7 @@ namespace FacebookClone.Repositories.Implementations
                 .ToListAsync();
         }
 
-        public async Task<List<MediaFile>> GetByAttachmentAsync(string attachmentType, string attachmentId)
+        public async Task<List<MediaFile>> GetByAttachmentAsync(MediaAttachmentType attachmentType, string attachmentId)
         {
             return await _context.MediaFiles
                 .Where(m => m.AttachmentType == attachmentType && m.AttachmentId == attachmentId)
@@ -43,7 +44,7 @@ namespace FacebookClone.Repositories.Implementations
                 .ToListAsync();
         }
 
-        public async Task<MediaFile?> GetSingleByAttachmentAsync(string attachmentType, string attachmentId)
+        public async Task<MediaFile?> GetSingleByAttachmentAsync(MediaAttachmentType attachmentType, string attachmentId)
         {
             return await _context.MediaFiles
                 .Where(m => m.AttachmentType == attachmentType && m.AttachmentId == attachmentId)
@@ -61,7 +62,7 @@ namespace FacebookClone.Repositories.Implementations
             return true;
         }
 
-        public async Task<bool> DeleteByAttachmentAsync(string attachmentType, string attachmentId)
+        public async Task<bool> DeleteByAttachmentAsync(MediaAttachmentType attachmentType, string attachmentId)
         {
             var mediaFiles = await GetByAttachmentAsync(attachmentType, attachmentId);
             if (!mediaFiles.Any()) return true;

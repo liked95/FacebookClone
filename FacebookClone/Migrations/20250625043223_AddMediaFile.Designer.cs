@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FacebookClone.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250624151659_AddMediaFiles")]
-    partial class AddMediaFiles
+    [Migration("20250625043223_AddMediaFile")]
+    partial class AddMediaFile
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -110,10 +110,9 @@ namespace FacebookClone.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<string>("AttachmentType")
-                        .IsRequired()
+                    b.Property<int>("AttachmentType")
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("int");
 
                     b.Property<string>("BlobUrl")
                         .IsRequired()
@@ -200,12 +199,6 @@ namespace FacebookClone.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("FileUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ImageUrl")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<bool>("IsEdited")
                         .HasColumnType("bit");
 
@@ -217,9 +210,6 @@ namespace FacebookClone.Migrations
 
                     b.Property<Guid?>("UserId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("VideoUrl")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 

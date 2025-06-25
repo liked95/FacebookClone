@@ -32,6 +32,8 @@ namespace FacebookClone.Controllers
         /// </summary>
         [HttpPost]
         [Authorize]
+        [RequestSizeLimit(500_000_000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
         [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<ApiResponse<PostResponseDto>>> CreatePost(
@@ -81,9 +83,15 @@ namespace FacebookClone.Controllers
         /// </summary>
         [HttpPut("{postId}")]
         [Authorize]
+        [RequestSizeLimit(500_000_000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
         [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<ApiResponse<PostResponseDto>>> UpdatePost(Guid postId, [FromBody] UpdatePostDto updatePostDto)
+        public async Task<ActionResult<ApiResponse<PostResponseDto>>> UpdatePost(
+            Guid postId, 
+            [FromForm] string content,
+            [FromForm] PrivacyType privacy,
+            [FromForm] List<IFormFile>? mediaFiles = null)
         {
             try
             {
@@ -105,7 +113,13 @@ namespace FacebookClone.Controllers
                     return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<PostResponseDto>.ErrorResponse("You can only update your own posts", 403));
                 }
 
-                var updatedPost = await _postService.UpdatePostAsync(postId, updatePostDto);
+                var updatePostDto = new UpdatePostDto
+                {
+                    Content = content,
+                    Privacy = privacy
+                };
+
+                var updatedPost = await _postService.UpdatePostWithMediaAsync(postId, updatePostDto, mediaFiles);
                 if (updatedPost == null)
                 {
                     return NotFound(ApiResponse<PostResponseDto>.ErrorResponse("Failed to update post", 404));

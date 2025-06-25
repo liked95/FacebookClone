@@ -1,4 +1,5 @@
-﻿using FacebookClone.Models.DTOs;
+﻿using FacebookClone.Models.Constants;
+using FacebookClone.Models.DTOs;
 
 namespace FacebookClone.Services.Interfaces
 {
@@ -7,11 +8,11 @@ namespace FacebookClone.Services.Interfaces
         Task<List<MediaFileDto>> UploadMultipleFilesAsync(
             Guid userId,
             List<IFormFile> files,
-            string attachmentType,
+            MediaAttachmentType attachmentType,
             string attachmentId,
             CancellationToken cancellationToken = default);
-        Task<List<MediaFileDto>> GetMediaFilesByAttachmentAsync(string attachmentType, string attachmentId);
-        Task<bool> DeleteMediaFilesByAttachmentAsync(string attachmentType, string attachmentId);
+        Task<List<MediaFileDto>> GetMediaFilesByAttachmentAsync(MediaAttachmentType attachmentType, string attachmentId);
+        Task<bool> DeleteMediaFilesByAttachmentAsync(MediaAttachmentType attachmentType, string attachmentId);
         Task<bool> ValidateMediaOwnershipAsync(List<Guid> mediaIds, Guid userId);
     }
 

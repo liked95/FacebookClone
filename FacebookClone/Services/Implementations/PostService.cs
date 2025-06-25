@@ -1,4 +1,5 @@
-﻿using FacebookClone.Models.DomainModels;
+﻿using FacebookClone.Models.Constants;
+using FacebookClone.Models.DomainModels;
 using FacebookClone.Models.DTOs;
 using FacebookClone.Repositories.Implementations;
 using FacebookClone.Repositories.Interfaces;
@@ -75,7 +76,7 @@ namespace FacebookClone.Services.Implementations
                     await _mediaService.UploadMultipleFilesAsync(
                         userId,
                         mediaFiles,
-                        "post",
+                        MediaAttachmentType.Post,
                         post.Id.ToString());
                 }
 
@@ -88,7 +89,7 @@ namespace FacebookClone.Services.Implementations
             }
         }
 
-        public async Task<PostResponseDto?> UpdatePostAsync(Guid id, UpdatePostDto updatePostDto)
+        public async Task<PostResponseDto?> UpdatePostWithMediaAsync(Guid id, UpdatePostDto updatePostDto, List<IFormFile>? mediaFiles = null)
         {
             var existingPost = await _postRepository.GetByIdAsync(id);
             if (existingPost == null)
@@ -115,12 +116,18 @@ namespace FacebookClone.Services.Implementations
 
         public async Task<bool> DeletePostAsync(Guid id)
         {
+            var existingPost = await _postRepository.GetByIdAsync(id);
+            if (existingPost == null) return false;
+
+            var deleteMediaResult = await _mediaService.DeleteMediaFilesByAttachmentAsync(MediaAttachmentType.Post, id.ToString());
+
+
             var result = await _postRepository.DeletePostAsync(id);
-            if (result)
+            if (result && deleteMediaResult)
             {
                 _logger.LogInformation("Post deleted successfully with ID: {PostId}", id);
             }
-            return result;
+            return result && deleteMediaResult;
         }
 
 
@@ -157,7 +164,7 @@ namespace FacebookClone.Services.Implementations
             var isLikedByCurrentUser = currentUserId.HasValue &&
                 await _likeRepository.IsPostLikedByUserAsync(post.Id, currentUserId.Value);
 
-            var mediaFiles = await _mediaService.GetMediaFilesByAttachmentAsync("post", post.Id.ToString());
+            var mediaFiles = await _mediaService.GetMediaFilesByAttachmentAsync(MediaAttachmentType.Post, post.Id.ToString());
 
             return new PostResponseDto
             {

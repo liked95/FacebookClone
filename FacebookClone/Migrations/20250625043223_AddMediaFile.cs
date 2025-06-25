@@ -6,11 +6,23 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FacebookClone.Migrations
 {
     /// <inheritdoc />
-    public partial class AddMediaFiles : Migration
+    public partial class AddMediaFile : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropColumn(
+                name: "FileUrl",
+                table: "Posts");
+
+            migrationBuilder.DropColumn(
+                name: "ImageUrl",
+                table: "Posts");
+
+            migrationBuilder.DropColumn(
+                name: "VideoUrl",
+                table: "Posts");
+
             migrationBuilder.AddColumn<DateTime>(
                 name: "UpdatedAt",
                 table: "Posts",
@@ -34,7 +46,7 @@ namespace FacebookClone.Migrations
                     Height = table.Column<int>(type: "int", nullable: true),
                     Duration = table.Column<int>(type: "int", nullable: true),
                     UploadedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    AttachmentType = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    AttachmentType = table.Column<int>(type: "int", maxLength: 20, nullable: false),
                     AttachmentId = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     DisplayOrder = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -78,6 +90,24 @@ namespace FacebookClone.Migrations
             migrationBuilder.DropColumn(
                 name: "UpdatedAt",
                 table: "Posts");
+
+            migrationBuilder.AddColumn<string>(
+                name: "FileUrl",
+                table: "Posts",
+                type: "nvarchar(max)",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "ImageUrl",
+                table: "Posts",
+                type: "nvarchar(max)",
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "VideoUrl",
+                table: "Posts",
+                type: "nvarchar(max)",
+                nullable: true);
         }
     }
 }

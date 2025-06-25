@@ -1,4 +1,6 @@
-﻿namespace FacebookClone.Models.DomainModels
+﻿using FacebookClone.Models.Constants;
+
+namespace FacebookClone.Models.DomainModels
 {
     public class MediaFile
     {
@@ -16,7 +18,7 @@
         public Guid UploadedBy { get; set; }
 
         // Polymorphic association fields
-        public string AttachmentType { get; set; } // "post", "avatar", "chat_message"
+        public MediaAttachmentType AttachmentType { get; set; } // "post", "avatar", "chat_message"
         public string AttachmentId { get; set; } // ID of the related entity as string
         public int DisplayOrder { get; set; } // Order within the attachment (for posts with multiple media)
 

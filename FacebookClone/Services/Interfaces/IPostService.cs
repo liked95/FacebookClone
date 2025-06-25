@@ -7,7 +7,7 @@ namespace FacebookClone.Services.Interfaces
     {
         Task<IEnumerable<PostResponseDto>> GetPostsByUserIdAsync(Guid userId, int pageNumber, int pageSize);
         Task<PostResponseDto?> CreatePostWithMediaAsync(Guid userId, CreatePostDto createPostDto, List<IFormFile>? mediaFiles = null);
-        Task<PostResponseDto?> UpdatePostAsync(Guid id, UpdatePostDto post);
+        Task<PostResponseDto?> UpdatePostWithMediaAsync(Guid id, UpdatePostDto post, List<IFormFile>? mediaFiles = null);
         Task<bool> DeletePostAsync(Guid postId);
         Task<bool> IsPostOwnerAsync(Guid postId, Guid userId);
         Task<IEnumerable<PostResponseDto>> GetPostsForFeed(int pageNumber, int pageSize);

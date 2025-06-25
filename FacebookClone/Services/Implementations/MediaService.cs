@@ -1,9 +1,10 @@
-﻿using FacebookClone.Models.DomainModels;
+﻿using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using FacebookClone.Models.Constants;
+using FacebookClone.Models.DomainModels;
 using FacebookClone.Models.DTOs;
 using FacebookClone.Repositories.Interfaces;
 using FacebookClone.Services.Interfaces;
-using Azure.Storage.Blobs;
-using Azure.Storage.Blobs.Models;
 
 
 namespace FacebookClone.Services.Implementations
@@ -30,7 +31,7 @@ namespace FacebookClone.Services.Implementations
         public async Task<List<MediaFileDto>> UploadMultipleFilesAsync(
             Guid userId,
             List<IFormFile> files,
-            string attachmentType,
+            MediaAttachmentType attachmentType,
             string attachmentId,
             CancellationToken cancellationToken = default)
         {
@@ -51,7 +52,7 @@ namespace FacebookClone.Services.Implementations
 
                     // Generate unique filename with folder structure
                     var fileExtension = Path.GetExtension(file.FileName);
-                    var fileName = $"{attachmentType}/{DateTime.UtcNow:yyyy/MM/dd}/{Guid.NewGuid()}{fileExtension}";
+                    var fileName = $"{attachmentType.ToString()}/{DateTime.UtcNow:yyyy/MM/dd}/{Guid.NewGuid()}{fileExtension}";
                     var blobClient = containerClient.GetBlobClient(fileName);
 
                     // Set blob metadata
@@ -59,7 +60,7 @@ namespace FacebookClone.Services.Implementations
                     {
                         ["OriginalFileName"] = file.FileName,
                         ["UploadedBy"] = userId.ToString(),
-                        ["AttachmentType"] = attachmentType,
+                        ["AttachmentType"] = attachmentType.ToString(),
                         ["AttachmentId"] = attachmentId,
                         ["UploadedAt"] = DateTime.UtcNow.ToString("O")
                     };
@@ -115,13 +116,13 @@ namespace FacebookClone.Services.Implementations
             return uploadResults;
         }
 
-        public async Task<List<MediaFileDto>> GetMediaFilesByAttachmentAsync(string attachmentType, string attachmentId)
+        public async Task<List<MediaFileDto>> GetMediaFilesByAttachmentAsync(MediaAttachmentType attachmentType, string attachmentId)
         {
             var mediaFiles = await _mediaRepository.GetByAttachmentAsync(attachmentType, attachmentId);
             return mediaFiles.Select(MapToDto).ToList();
         }
 
-        public async Task<bool> DeleteMediaFilesByAttachmentAsync(string attachmentType, string attachmentId)
+        public async Task<bool> DeleteMediaFilesByAttachmentAsync(MediaAttachmentType attachmentType, string attachmentId)
         {
             try
             {
@@ -169,7 +170,7 @@ namespace FacebookClone.Services.Implementations
 
         private void ValidateFile(IFormFile file)
         {
-            var allowedImageTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+            var allowedImageTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp" };
             var allowedVideoTypes = new[] { "video/mp4", "video/mov", "video/avi" };
 
             var isValidType = allowedImageTypes.Contains(file.ContentType) ||
