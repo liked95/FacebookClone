@@ -91,7 +91,9 @@ namespace FacebookClone.Controllers
             Guid postId, 
             [FromForm] string content,
             [FromForm] PrivacyType privacy,
-            [FromForm] List<IFormFile>? mediaFiles = null)
+            [FromForm] List<IFormFile>? mediaFiles = null,
+            [FromForm] List<Guid>? existingMediaIds = null
+        )
         {
             try
             {
@@ -113,13 +115,16 @@ namespace FacebookClone.Controllers
                     return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<PostResponseDto>.ErrorResponse("You can only update your own posts", 403));
                 }
 
+
+
                 var updatePostDto = new UpdatePostDto
                 {
                     Content = content,
-                    Privacy = privacy
+                    Privacy = privacy,
+                    ExistingMediaIds = existingMediaIds
                 };
 
-                var updatedPost = await _postService.UpdatePostWithMediaAsync(postId, updatePostDto, mediaFiles);
+                var updatedPost = await _postService.UpdatePostWithMediaAsync(userId, postId, updatePostDto, mediaFiles);
                 if (updatedPost == null)
                 {
                     return NotFound(ApiResponse<PostResponseDto>.ErrorResponse("Failed to update post", 404));

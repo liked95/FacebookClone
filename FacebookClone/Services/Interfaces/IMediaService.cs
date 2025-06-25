@@ -12,6 +12,7 @@ namespace FacebookClone.Services.Interfaces
             string attachmentId,
             CancellationToken cancellationToken = default);
         Task<List<MediaFileDto>> GetMediaFilesByAttachmentAsync(MediaAttachmentType attachmentType, string attachmentId);
+        Task<bool> DeleteMediaFilesByIdsAsync(List<Guid> mediaIds);
         Task<bool> DeleteMediaFilesByAttachmentAsync(MediaAttachmentType attachmentType, string attachmentId);
         Task<bool> ValidateMediaOwnershipAsync(List<Guid> mediaIds, Guid userId);
     }

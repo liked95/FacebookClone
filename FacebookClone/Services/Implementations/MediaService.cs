@@ -162,6 +162,48 @@ namespace FacebookClone.Services.Implementations
             }
         }
 
+        public async Task<bool> DeleteMediaFilesByIdsAsync(List<Guid> mediaIds)
+        {
+            if (mediaIds == null || !mediaIds.Any())
+                return true;
+
+            try
+            {
+                var mediaFiles = await _mediaRepository.GetByIdsAsync(mediaIds);
+                if (!mediaFiles.Any())
+                {
+                    _logger.LogWarning("No media files found for deletion.");
+                    return false;
+                }
+
+                var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
+
+                foreach (var mediaFile in mediaFiles)
+                {
+                    try
+                    {
+                        var blobClient = containerClient.GetBlobClient(mediaFile.FileName);
+                        await blobClient.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots);
+                        _logger.LogInformation("Deleted blob {FileName} from Azure", mediaFile.FileName);
+                        await _mediaRepository.DeleteAsync(mediaFile.Id);
+                        _logger.LogInformation("Deleted media records from DB with Id {Id}", mediaFile.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to delete blob {FileName} from Azure", mediaFile.FileName);
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred during media deletion by IDs");
+                return false;
+            }
+        }
+
+
         public async Task<bool> ValidateMediaOwnershipAsync(List<Guid> mediaIds, Guid userId)
         {
             var mediaFiles = await _mediaRepository.GetByIdsAsync(mediaIds);

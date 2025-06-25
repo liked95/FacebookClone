@@ -89,9 +89,13 @@ namespace FacebookClone.Services.Implementations
             }
         }
 
-        public async Task<PostResponseDto?> UpdatePostWithMediaAsync(Guid id, UpdatePostDto updatePostDto, List<IFormFile>? mediaFiles = null)
+        public async Task<PostResponseDto?> UpdatePostWithMediaAsync(
+            Guid userId,
+            Guid postId,
+            UpdatePostDto updatePostDto,
+            List<IFormFile>? mediaFiles = null)
         {
-            var existingPost = await _postRepository.GetByIdAsync(id);
+            var existingPost = await _postRepository.GetByIdAsync(postId);
             if (existingPost == null)
                 return null;
 
@@ -106,12 +110,31 @@ namespace FacebookClone.Services.Implementations
             var updatedPost = await _postRepository.UpdatePostAsync(existingPost);
             if (updatedPost == null)
             {
-                _logger.LogError("Failed to update post with ID: {PostId}", id);
+                _logger.LogError("Failed to update post with ID: {PostId}", postId);
                 return null;
             }
 
             _logger.LogInformation("Post updated successfully with ID: {PostId}", updatedPost.Id);
+
+            // Get all current media for the post
+            var allMedias = await _mediaService.GetMediaFilesByAttachmentAsync(MediaAttachmentType.Post, postId.ToString());
+
+
+            // Delete removed media
+            var mediaToDeletes = allMedias.Where(m => !updatePostDto.ExistingMediaIds.Contains(m.Id)).ToList();
+            var mediaToDeleteIds = mediaToDeletes.Select(m => m.Id).ToList();
+            await _mediaService.DeleteMediaFilesByIdsAsync(mediaToDeleteIds);
+
+           
+            // Upload new medias
+            if (mediaFiles?.Any() == true)
+            {
+                await _mediaService.UploadMultipleFilesAsync(userId, mediaFiles, MediaAttachmentType.Post, postId.ToString());
+                _logger.LogInformation("Post {PostId} updated with new media files", postId);
+            }
+
             return await MapToPostResponseDto(updatedPost);
+
         }
 
         public async Task<bool> DeletePostAsync(Guid id)

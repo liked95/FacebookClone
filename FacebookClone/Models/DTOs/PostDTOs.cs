@@ -18,6 +18,7 @@ namespace FacebookClone.Models.DTOs
         public string? Content { get; set; }
 
         public PrivacyType? Privacy { get; set; }
+        public List<Guid>? ExistingMediaIds { get; set; }
     }
 
     public class PostResponseDto
