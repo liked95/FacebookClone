@@ -1,4 +1,5 @@
 ﻿using FacebookClone.Common;
+using FacebookClone.Models.Constants;
 using FacebookClone.Models.DTOs;
 using FacebookClone.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -33,7 +34,10 @@ namespace FacebookClone.Controllers
         [Authorize]
         [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<ApiResponse<PostResponseDto>>> CreatePost([FromBody] CreatePostDto createPostDto)
+        public async Task<ActionResult<ApiResponse<PostResponseDto>>> CreatePost(
+            [FromForm] string content,
+            [FromForm] PrivacyType privacy,
+            [FromForm] List<IFormFile>? mediaFiles = null)
         {
             try
             {
@@ -50,7 +54,14 @@ namespace FacebookClone.Controllers
                 }
 
                 var userId = Guid.Parse(currentUserId);
-                var post = await _postService.CreatePostAsync(userId, createPostDto);
+
+                var createPostDto = new CreatePostDto
+                {
+                    Content = content?.Trim() ?? string.Empty,
+                    Privacy = privacy 
+                };
+
+                var post = await _postService.CreatePostWithMediaAsync(userId, createPostDto, mediaFiles);
                 if (post == null)
                 {
                     return BadRequest(ApiResponse<PostResponseDto>.ErrorResponse("Failed to create post"));

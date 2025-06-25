@@ -10,15 +10,6 @@ namespace FacebookClone.Models.DTOs
         public string Content { get; set; } = string.Empty;
 
         public PrivacyType Privacy { get; set; } = PrivacyType.Public;
-
-        [Url]
-        public string? ImageUrl { get; set; }
-
-        [Url]
-        public string? VideoUrl { get; set; }
-
-        [Url]
-        public string? FileUrl { get; set; }
     }
 
     public class UpdatePostDto
@@ -27,15 +18,6 @@ namespace FacebookClone.Models.DTOs
         public string? Content { get; set; }
 
         public PrivacyType? Privacy { get; set; }
-
-        [Url]
-        public string? ImageUrl { get; set; }
-
-        [Url]
-        public string? VideoUrl { get; set; }
-
-        [Url]
-        public string? FileUrl { get; set; }
     }
 
     public class PostResponseDto
@@ -48,12 +30,29 @@ namespace FacebookClone.Models.DTOs
         public string? UserAvatarUrl { get; set; }
         public PrivacyType Privacy { get; set; }
         public bool IsEdited { get; set; }
-        public string? ImageUrl { get; set; }
-        public string? VideoUrl { get; set; }
-        public string? FileUrl { get; set; }
         public int CommentsCount { get; set; }
         public int LikesCount { get; set; }
         public bool IsLikedByCurrentUser { get; set; }
+        public List<MediaFileDto> MediaFiles { get; set; } = new List<MediaFileDto>();
+    }
+
+    public class MediaFileDto
+    {
+        public Guid Id { get; set; }
+        public string FileName { get; set; }
+        public string OriginalFileName { get; set; }
+        public long FileSize { get; set; }
+        public string MimeType { get; set; }
+        public string MediaType { get; set; }
+        public string BlobUrl { get; set; }
+        public string? ThumbnailUrl { get; set; }
+        public int? Width { get; set; }
+        public int? Height { get; set; }
+        public int? Duration { get; set; }
+        public int DisplayOrder { get; set; }
+        public string ProcessingStatus { get; set; }
+        public bool IsProcessed { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 
     public class PostListDto

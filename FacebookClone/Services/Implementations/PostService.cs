@@ -14,18 +14,21 @@ namespace FacebookClone.Services.Implementations
         private readonly IPostRepository _postRepository;
         private readonly ICommentRepository _commentRepository;
         private readonly ILikeRepository _likeRepository;
+        private readonly IMediaService _mediaService;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger<PostService> _logger;
 
-        public PostService(IPostRepository postRepository, 
+        public PostService(IPostRepository postRepository,
             ICommentRepository commentRepository,
             ILikeRepository likeRepository,
+            IMediaService mediaService,
             IHttpContextAccessor httpContextAccessor,
             ILogger<PostService> logger)
         {
             _postRepository = postRepository;
             _commentRepository = commentRepository;
             _likeRepository = likeRepository;
+            _mediaService = mediaService;
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
         }
@@ -33,37 +36,56 @@ namespace FacebookClone.Services.Implementations
         {
             var posts = await _postRepository.GetAllPostsByUserIdAsync(userId, pageNumber, pageSize);
             var result = new List<PostResponseDto>();
-            foreach( var post in posts)
+            foreach (var post in posts)
             {
                 result.Add(await MapToPostResponseDto(post));
             }
             return result;
         }
 
-
-
-        public async Task<PostResponseDto?> CreatePostAsync(Guid userId, CreatePostDto createPostDto)
+        public async Task<PostResponseDto?> CreatePostWithMediaAsync(
+            Guid userId,
+            CreatePostDto createPostDto,
+            List<IFormFile>? mediaFiles = null
+        )
         {
-            var post = new Post
+            try
             {
-                Id = Guid.NewGuid(),
-                Content = createPostDto.Content,
-                UserId = userId,
-                Privacy = createPostDto.Privacy,
-                ImageUrl = createPostDto.ImageUrl,
-                VideoUrl = createPostDto.VideoUrl,
-                FileUrl = createPostDto.FileUrl,
-                CreatedAt = DateTime.UtcNow
-            };
+                var post = new Post
+                {
+                    Id = Guid.NewGuid(),
+                    Content = createPostDto.Content,
+                    UserId = userId,
+                    Privacy = createPostDto.Privacy,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
 
-            var createdPost = await _postRepository.CreatePostAsync(post);
-            if (createdPost == null)
-            {
-                _logger.LogError("Failed to create post for user: {UserId}", userId);
-                return null;
+                var createdPost = await _postRepository.CreatePostAsync(post);
+
+                if (createdPost == null)
+                {
+                    _logger.LogError("Failed to create post for user: {UserId}", userId);
+                    return null;
+                }
+
+                // Upload media files if provided
+                if (mediaFiles?.Any() == true)
+                {
+                    await _mediaService.UploadMultipleFilesAsync(
+                        userId,
+                        mediaFiles,
+                        "post",
+                        post.Id.ToString());
+                }
+
+                return await MapToPostResponseDto(createdPost);
             }
-
-            return await MapToPostResponseDto(createdPost);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating post with media for user {UserId}", userId);
+                throw;
+            }
         }
 
         public async Task<PostResponseDto?> UpdatePostAsync(Guid id, UpdatePostDto updatePostDto)
@@ -79,14 +101,6 @@ namespace FacebookClone.Services.Implementations
             if (updatePostDto.Privacy.HasValue)
                 existingPost.Privacy = updatePostDto.Privacy.Value;
 
-            if (updatePostDto.ImageUrl != null)
-                existingPost.ImageUrl = updatePostDto.ImageUrl;
-
-            if (updatePostDto.VideoUrl != null)
-                existingPost.VideoUrl = updatePostDto.VideoUrl;
-
-            if (updatePostDto.FileUrl != null)
-                existingPost.FileUrl = updatePostDto.FileUrl;
 
             var updatedPost = await _postRepository.UpdatePostAsync(existingPost);
             if (updatedPost == null)
@@ -143,6 +157,8 @@ namespace FacebookClone.Services.Implementations
             var isLikedByCurrentUser = currentUserId.HasValue &&
                 await _likeRepository.IsPostLikedByUserAsync(post.Id, currentUserId.Value);
 
+            var mediaFiles = await _mediaService.GetMediaFilesByAttachmentAsync("post", post.Id.ToString());
+
             return new PostResponseDto
             {
                 Id = post.Id,
@@ -153,13 +169,10 @@ namespace FacebookClone.Services.Implementations
                 UserAvatarUrl = post.User?.AvatarUrl,
                 Privacy = post.Privacy,
                 IsEdited = post.IsEdited,
-                ImageUrl = post.ImageUrl,
-                VideoUrl = post.VideoUrl,
-                FileUrl = post.FileUrl,
                 CommentsCount = commentsCount,
                 LikesCount = likesCount,
-                IsLikedByCurrentUser = isLikedByCurrentUser
-
+                IsLikedByCurrentUser = isLikedByCurrentUser,
+                MediaFiles = mediaFiles.OrderBy(m => m.DisplayOrder).ToList()
             };
         }
     }
