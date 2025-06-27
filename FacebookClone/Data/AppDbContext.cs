@@ -14,6 +14,7 @@ namespace FacebookClone.Data
         public DbSet<Comment> Comments { get; set; }
         public DbSet<PostLike> PostLikes { get; set; }
         public DbSet<CommentLike> CommentLikes { get; set; }
+        public DbSet<MediaFile> MediaFiles { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -97,6 +98,30 @@ namespace FacebookClone.Data
                 .WithMany(c => c.Likes)
                 .HasForeignKey(cl => cl.CommentId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MediaFile>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.OriginalFileName).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.MimeType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.MediaType).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.BlobUrl).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.ProcessingStatus).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.AttachmentType).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.AttachmentId).IsRequired().HasMaxLength(50);
+
+                // Foreign key to User
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UploadedBy)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                // Indexes for polymorphic queries
+                entity.HasIndex(e => new { e.AttachmentType, e.AttachmentId });
+                entity.HasIndex(e => e.UploadedBy);
+                entity.HasIndex(e => new { e.AttachmentType, e.AttachmentId, e.DisplayOrder });
+            });
         }
 
     }

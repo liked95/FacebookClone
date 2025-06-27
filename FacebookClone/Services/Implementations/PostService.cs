@@ -1,4 +1,5 @@
-﻿using FacebookClone.Models.DomainModels;
+﻿using FacebookClone.Models.Constants;
+using FacebookClone.Models.DomainModels;
 using FacebookClone.Models.DTOs;
 using FacebookClone.Repositories.Implementations;
 using FacebookClone.Repositories.Interfaces;
@@ -14,18 +15,21 @@ namespace FacebookClone.Services.Implementations
         private readonly IPostRepository _postRepository;
         private readonly ICommentRepository _commentRepository;
         private readonly ILikeRepository _likeRepository;
+        private readonly IMediaService _mediaService;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger<PostService> _logger;
 
-        public PostService(IPostRepository postRepository, 
+        public PostService(IPostRepository postRepository,
             ICommentRepository commentRepository,
             ILikeRepository likeRepository,
+            IMediaService mediaService,
             IHttpContextAccessor httpContextAccessor,
             ILogger<PostService> logger)
         {
             _postRepository = postRepository;
             _commentRepository = commentRepository;
             _likeRepository = likeRepository;
+            _mediaService = mediaService;
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
         }
@@ -33,42 +37,65 @@ namespace FacebookClone.Services.Implementations
         {
             var posts = await _postRepository.GetAllPostsByUserIdAsync(userId, pageNumber, pageSize);
             var result = new List<PostResponseDto>();
-            foreach( var post in posts)
+            foreach (var post in posts)
             {
                 result.Add(await MapToPostResponseDto(post));
             }
             return result;
         }
 
-
-
-        public async Task<PostResponseDto?> CreatePostAsync(Guid userId, CreatePostDto createPostDto)
+        public async Task<PostResponseDto?> CreatePostWithMediaAsync(
+            Guid userId,
+            CreatePostDto createPostDto,
+            List<IFormFile>? mediaFiles = null
+        )
         {
-            var post = new Post
+            try
             {
-                Id = Guid.NewGuid(),
-                Content = createPostDto.Content,
-                UserId = userId,
-                Privacy = createPostDto.Privacy,
-                ImageUrl = createPostDto.ImageUrl,
-                VideoUrl = createPostDto.VideoUrl,
-                FileUrl = createPostDto.FileUrl,
-                CreatedAt = DateTime.UtcNow
-            };
+                var post = new Post
+                {
+                    Id = Guid.NewGuid(),
+                    Content = createPostDto.Content,
+                    UserId = userId,
+                    Privacy = createPostDto.Privacy,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
 
-            var createdPost = await _postRepository.CreatePostAsync(post);
-            if (createdPost == null)
-            {
-                _logger.LogError("Failed to create post for user: {UserId}", userId);
-                return null;
+                var createdPost = await _postRepository.CreatePostAsync(post);
+
+                if (createdPost == null)
+                {
+                    _logger.LogError("Failed to create post for user: {UserId}", userId);
+                    return null;
+                }
+
+                // Upload media files if provided
+                if (mediaFiles?.Any() == true)
+                {
+                    await _mediaService.UploadMultipleFilesAsync(
+                        userId,
+                        mediaFiles,
+                        MediaAttachmentType.Post,
+                        post.Id.ToString());
+                }
+
+                return await MapToPostResponseDto(createdPost);
             }
-
-            return await MapToPostResponseDto(createdPost);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating post with media for user {UserId}", userId);
+                throw;
+            }
         }
 
-        public async Task<PostResponseDto?> UpdatePostAsync(Guid id, UpdatePostDto updatePostDto)
+        public async Task<PostResponseDto?> UpdatePostWithMediaAsync(
+            Guid userId,
+            Guid postId,
+            UpdatePostDto updatePostDto,
+            List<IFormFile>? mediaFiles = null)
         {
-            var existingPost = await _postRepository.GetByIdAsync(id);
+            var existingPost = await _postRepository.GetByIdAsync(postId);
             if (existingPost == null)
                 return null;
 
@@ -79,34 +106,51 @@ namespace FacebookClone.Services.Implementations
             if (updatePostDto.Privacy.HasValue)
                 existingPost.Privacy = updatePostDto.Privacy.Value;
 
-            if (updatePostDto.ImageUrl != null)
-                existingPost.ImageUrl = updatePostDto.ImageUrl;
-
-            if (updatePostDto.VideoUrl != null)
-                existingPost.VideoUrl = updatePostDto.VideoUrl;
-
-            if (updatePostDto.FileUrl != null)
-                existingPost.FileUrl = updatePostDto.FileUrl;
 
             var updatedPost = await _postRepository.UpdatePostAsync(existingPost);
             if (updatedPost == null)
             {
-                _logger.LogError("Failed to update post with ID: {PostId}", id);
+                _logger.LogError("Failed to update post with ID: {PostId}", postId);
                 return null;
             }
 
             _logger.LogInformation("Post updated successfully with ID: {PostId}", updatedPost.Id);
+
+            // Get all current media for the post
+            var allMedias = await _mediaService.GetMediaFilesByAttachmentAsync(MediaAttachmentType.Post, postId.ToString());
+
+
+            // Delete removed media
+            var mediaToDeletes = allMedias.Where(m => !updatePostDto.ExistingMediaIds.Contains(m.Id)).ToList();
+            var mediaToDeleteIds = mediaToDeletes.Select(m => m.Id).ToList();
+            await _mediaService.DeleteMediaFilesByIdsAsync(mediaToDeleteIds);
+
+           
+            // Upload new medias
+            if (mediaFiles?.Any() == true)
+            {
+                await _mediaService.UploadMultipleFilesAsync(userId, mediaFiles, MediaAttachmentType.Post, postId.ToString());
+                _logger.LogInformation("Post {PostId} updated with new media files", postId);
+            }
+
             return await MapToPostResponseDto(updatedPost);
+
         }
 
         public async Task<bool> DeletePostAsync(Guid id)
         {
+            var existingPost = await _postRepository.GetByIdAsync(id);
+            if (existingPost == null) return false;
+
+            var deleteMediaResult = await _mediaService.DeleteMediaFilesByAttachmentAsync(MediaAttachmentType.Post, id.ToString());
+
+
             var result = await _postRepository.DeletePostAsync(id);
-            if (result)
+            if (result && deleteMediaResult)
             {
                 _logger.LogInformation("Post deleted successfully with ID: {PostId}", id);
             }
-            return result;
+            return result && deleteMediaResult;
         }
 
 
@@ -143,6 +187,8 @@ namespace FacebookClone.Services.Implementations
             var isLikedByCurrentUser = currentUserId.HasValue &&
                 await _likeRepository.IsPostLikedByUserAsync(post.Id, currentUserId.Value);
 
+            var mediaFiles = await _mediaService.GetMediaFilesByAttachmentAsync(MediaAttachmentType.Post, post.Id.ToString());
+
             return new PostResponseDto
             {
                 Id = post.Id,
@@ -153,13 +199,10 @@ namespace FacebookClone.Services.Implementations
                 UserAvatarUrl = post.User?.AvatarUrl,
                 Privacy = post.Privacy,
                 IsEdited = post.IsEdited,
-                ImageUrl = post.ImageUrl,
-                VideoUrl = post.VideoUrl,
-                FileUrl = post.FileUrl,
                 CommentsCount = commentsCount,
                 LikesCount = likesCount,
-                IsLikedByCurrentUser = isLikedByCurrentUser
-
+                IsLikedByCurrentUser = isLikedByCurrentUser,
+                MediaFiles = mediaFiles.OrderBy(m => m.DisplayOrder).ToList()
             };
         }
     }

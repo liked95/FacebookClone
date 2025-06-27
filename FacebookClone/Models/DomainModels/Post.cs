@@ -14,6 +14,7 @@ namespace FacebookClone.Models.DomainModels
         public string Content { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
         public Guid? UserId { get; set; }
 
@@ -24,21 +25,10 @@ namespace FacebookClone.Models.DomainModels
 
         public bool IsEdited { get; set; } = false;
 
-        // Optional URL for an image
-        [Url]
-        public string? ImageUrl { get; set; }
-
-        // Optional URL for a video.
-        [Url]
-        public string? VideoUrl { get; set; }
-
-        // Optional URL for a file attachment.
-        [Url]
-        public string? FileUrl { get; set; }
-
         // Navigation Properties
         public virtual ICollection<Comment> Comments { get; set; } = new List<Comment>();
         public virtual ICollection<PostLike> Likes { get; set; } = new List<PostLike>(); 
+        
 
     }
 }

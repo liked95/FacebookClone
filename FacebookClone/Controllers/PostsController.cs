@@ -1,4 +1,5 @@
 ﻿using FacebookClone.Common;
+using FacebookClone.Models.Constants;
 using FacebookClone.Models.DTOs;
 using FacebookClone.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -31,9 +32,14 @@ namespace FacebookClone.Controllers
         /// </summary>
         [HttpPost]
         [Authorize]
+        [RequestSizeLimit(500_000_000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
         [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<ApiResponse<PostResponseDto>>> CreatePost([FromBody] CreatePostDto createPostDto)
+        public async Task<ActionResult<ApiResponse<PostResponseDto>>> CreatePost(
+            [FromForm] string content,
+            [FromForm] PrivacyType privacy,
+            [FromForm] List<IFormFile>? mediaFiles = null)
         {
             try
             {
@@ -50,7 +56,14 @@ namespace FacebookClone.Controllers
                 }
 
                 var userId = Guid.Parse(currentUserId);
-                var post = await _postService.CreatePostAsync(userId, createPostDto);
+
+                var createPostDto = new CreatePostDto
+                {
+                    Content = content?.Trim() ?? string.Empty,
+                    Privacy = privacy 
+                };
+
+                var post = await _postService.CreatePostWithMediaAsync(userId, createPostDto, mediaFiles);
                 if (post == null)
                 {
                     return BadRequest(ApiResponse<PostResponseDto>.ErrorResponse("Failed to create post"));
@@ -70,9 +83,17 @@ namespace FacebookClone.Controllers
         /// </summary>
         [HttpPut("{postId}")]
         [Authorize]
+        [RequestSizeLimit(500_000_000)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 500_000_000)]
         [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<PostResponseDto>), StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<ApiResponse<PostResponseDto>>> UpdatePost(Guid postId, [FromBody] UpdatePostDto updatePostDto)
+        public async Task<ActionResult<ApiResponse<PostResponseDto>>> UpdatePost(
+            Guid postId, 
+            [FromForm] string content,
+            [FromForm] PrivacyType privacy,
+            [FromForm] List<IFormFile>? mediaFiles = null,
+            [FromForm] List<Guid>? existingMediaIds = null
+        )
         {
             try
             {
@@ -94,7 +115,16 @@ namespace FacebookClone.Controllers
                     return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<PostResponseDto>.ErrorResponse("You can only update your own posts", 403));
                 }
 
-                var updatedPost = await _postService.UpdatePostAsync(postId, updatePostDto);
+
+
+                var updatePostDto = new UpdatePostDto
+                {
+                    Content = content,
+                    Privacy = privacy,
+                    ExistingMediaIds = existingMediaIds
+                };
+
+                var updatedPost = await _postService.UpdatePostWithMediaAsync(userId, postId, updatePostDto, mediaFiles);
                 if (updatedPost == null)
                 {
                     return NotFound(ApiResponse<PostResponseDto>.ErrorResponse("Failed to update post", 404));
